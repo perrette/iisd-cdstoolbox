@@ -1,5 +1,5 @@
 # iisd-cdstoolbox
-Code related to the CDS Toolbox
+Code related to offline processing of CDS Toolbox data
 
 Example use:
 
