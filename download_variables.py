@@ -63,8 +63,33 @@ class Dataset:
     def __repr__(self):
         return f'{type(self).__name__}({self.dataset}, {self.params}, {self.downloaded_file})'
 
+    def get_varname(self, ds):
+        """get main variable name from netCDF.Dataset
+        """
+        variables = [v for v in ds.variables if ds[v].dimensions == ('time', self.lat, self.lon)]
+        assert len(variables) == 1, f'Expected one variable matching (time, {self.lat}, {self.lon}) dimensions, found {len(variables)}.\nVariables: {ds.variables}'
+        return variables[0]
+
+    def _extract_timeseries(self, f, lon, lat):
+        if not os.path.exists(self.downloaded_file):
+            self.download()
+        with nc.Dataset(f) as ds:
+            variable = self.get_varname(ds)
+            time, units = convert_time(ds)
+        region = xr.open_dataset(f)[variable]
+        # latitude is in reverse order for this dataset
+        interpolator = RegularGridInterpolator((region.longitude, region.latitude[::-1]), region.values.T[:, ::-1])
+        timeseries = interpolator(np.array((lon, lat)), method='linear').squeeze()
+        series = pd.Series(timeseries, index=time, name=self.variable)
+        series.index.name = units
+        return series
+
+
 
 class CMIP5(Dataset):
+
+    lon = 'lon'
+    lat = 'lat'
 
     def __init__(self, variable, model, scenario, period, ensemble=None):
         self.variable = variable
@@ -90,14 +115,6 @@ class CMIP5(Dataset):
                 'period': self.period,
             }
 
-    def get_varname(self, ds):
-        """get main variable name from netCDF.Dataset
-        """
-        variables = [v for v in ds.variables if ds[v].dimensions == ('time', 'lat', 'lon')]
-        assert len(variables) == 1, f'Expected one variable matching (time, lat, lon) dimensions, found {len(variables)}.\nVariables: {ds.variables}'
-        return variables[0]
-
-
     def extract_timeseries(self, lon, lat):
         # download zip file
         if not os.path.exists(self.downloaded_file):
@@ -118,25 +135,11 @@ class CMIP5(Dataset):
         return pd.concat([self._extract_timeseries(f, lon, lat) for f in files])
 
 
-    def _extract_timeseries(self, f, lon, lat):
-        # variable name
-        with nc.Dataset(f) as ds:
-            variable = self.get_varname(ds)
-            time, units = convert_time(ds)
-
-        # load multiple files (rearrange along coordinates)
-        da = xr.open_dataset(f)[variable]
-        # extract a region around the point of interest
-        region = da.sel(lon=slice(lon-5, lon+5), lat=slice(lat-5, lat+5))
-        # bi-linear interpolation on the specific lon/lat
-        interpolator = RegularGridInterpolator((region.lon, region.lat), region.values.T)
-        values = interpolator(np.array((lon, lat)), method='linear').squeeze()
-        s = pd.Series(values, index=time, name=self.variable)
-        s.index.name = units
-        return s
-
-
 class ERA5(Dataset):
+
+    lon = 'longitude'
+    lat = 'latitude'
+
 
     def __init__(self, variable, year=None, area=None):
         self.variable = variable
@@ -163,26 +166,10 @@ class ERA5(Dataset):
                 'area': self.area,
             }
 
-    def get_varname(self, ds):
-        """get main variable name from netCDF.Dataset
-        """
-        variables = [v for v in ds.variables if ds[v].dimensions == ('time', 'latitude', 'longitude')]
-        assert len(variables) == 1, f'Expected one variable matching (time, latitude, longitude) dimensions, found {len(variables)}.\nVariables: {ds.variables}'
-        return variables[0]
 
     def extract_timeseries(self, lon, lat):
-        if not os.path.exists(self.downloaded_file):
-            self.download()
-        with nc.Dataset(self.downloaded_file) as ds:
-            variable = self.get_varname(ds)
-            time, units = convert_time(ds)
-        region = xr.open_dataset(self.downloaded_file)[variable]
-        # latitude is in reverse order for this dataset
-        interpolator = RegularGridInterpolator((region.longitude, region.latitude[::-1]), region.values.T[:, ::-1])
-        timeseries = interpolator(np.array((lon, lat)), method='linear').squeeze()
-        series = pd.Series(timeseries, index=time, name=self.variable)
-        series.index.name = units
-        return series
+        return self._extract_timeseries(self.downloaded_file, lon, lat)
+
 
 
 def make_area(lon, lat, w):
