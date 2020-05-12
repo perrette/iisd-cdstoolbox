@@ -70,6 +70,12 @@ class Dataset:
         assert len(variables) == 1, f'Expected one variable matching (time, {self.lat}, {self.lon}) dimensions, found {len(variables)}.\nVariables: {ds.variables}'
         return variables[0]
 
+    def ncvar(self):
+        'main netCDF variable'
+        files = self.get_ncfiles()
+        with nc.Dataset(files[0]) as ds:
+            return self.get_varname(ds)
+
     def _extract_timeseries(self, f, lon, lat):
         if not os.path.exists(self.downloaded_file):
             self.download()
@@ -77,13 +83,49 @@ class Dataset:
             variable = self.get_varname(ds)
             time, units = convert_time(ds)
         region = xr.open_dataset(f)[variable]
-        # latitude is in reverse order for this dataset
-        interpolator = RegularGridInterpolator((region.longitude, region.latitude[::-1]), region.values.T[:, ::-1])
+        londim = getattr(region, self.lon)
+        latdim = getattr(region, self.lat)
+        # is latitude is in reverse order for this dataset ?
+        if latdim[1] < latdim[0]:
+            interpolator = RegularGridInterpolator((londim, latdim[::-1]), region.values.T[:, ::-1])
+        else:
+            interpolator = RegularGridInterpolator((londim, latdim), region.values.T)
         timeseries = interpolator(np.array((lon, lat)), method='linear').squeeze()
         series = pd.Series(timeseries, index=time, name=self.variable)
         series.index.name = units
         return series
 
+
+    def _extract_map(self, dataarray, time, area=None):
+        if time is None:
+            time = dataarray.time[-1]        
+        map = dataarray.sel(time=time)
+        lon = map.coords[self.lon]
+        lat = map.coords[self.lat]
+
+        # we want to deal with increasing lat            
+        if lat[1] < lat[0]: 
+            map = map.isel({self.lat:slice(None, None, -1)})
+            lon = map.coords[self.lon]
+            lat = map.coords[self.lat]
+            assert lat[1] > lat[0]
+
+        if area:
+            t, l, b, r = area
+            ilon = ((lon >= l) & (lon <= r))
+            ilat = ((lat <= t) & (lat >= b))
+            map = map.isel({self.lon:ilon, self.lat:ilat})
+            lon = map.coords[self.lon]
+            lat = map.coords[self.lat]
+
+        # add extent as an attribute, for further plotting
+        l = lon[0] - (lon[1]-lon[0])/2 # add half a grid cell
+        r = lon[-1] + (lon[-1]-lon[-2])/2
+        b = lat[0] - (lat[1]-lat[0])/2
+        t = lat[-1] + (lat[-1]-lat[-2])/2
+        map.attrs['extent'] = l, r, b, t
+
+        return map
 
 
 class CMIP5(Dataset):
@@ -115,7 +157,7 @@ class CMIP5(Dataset):
                 'period': self.period,
             }
 
-    def extract_timeseries(self, lon, lat):
+    def get_ncfiles(self):
         # download zip file
         if not os.path.exists(self.downloaded_file):
             self.download()
@@ -128,11 +170,21 @@ class CMIP5(Dataset):
                 print('Extracting all files...')
                 zipObj.extractall(path=self.folder)
 
-        # return dataset 
-        files = [os.path.join(self.folder, name) for name in listOfiles]
+        return [os.path.join(self.folder, name) for name in listOfiles]
 
+
+    def extract_timeseries(self, lon, lat):
+        files = self.get_ncfiles()
         # alltimes, allvalues = zip(*[self._extract_timeseries(f, lon, lat) for f in files])
         return pd.concat([self._extract_timeseries(f, lon, lat) for f in files])
+
+
+    def extract_map(self, time=None, area=None):
+        files = self.get_ncfiles()
+        with nc.Dataset(files[0]) as ds:
+            variable = self.get_varname(ds)
+        dataarray = xr.open_mfdataset(files, combine='by_coords')[variable]
+        return self._extract_map(dataarray, time, area)
 
 
 class ERA5(Dataset):
@@ -166,9 +218,19 @@ class ERA5(Dataset):
                 'area': self.area,
             }
 
+    def get_ncfiles(self):
+        return [self.downloaded_file]
 
     def extract_timeseries(self, lon, lat):
         return self._extract_timeseries(self.downloaded_file, lon, lat)
+
+
+    def extract_map(self, time=None, area=None):
+        files = self.get_ncfiles()
+        with nc.Dataset(files[0]) as ds:
+            variable = self.get_varname(ds)
+        dataarray = xr.open_dataset(files[0])[variable]
+        return self._extract_map(dataarray, time, area)
 
 
 
@@ -225,8 +287,9 @@ def main():
     # g.add_argument('--era5-start', default=2000, type=int, help='default: %(default)s')
     # g.add_argument('--era5-end', default=2019, type=int, help='default: %(default)s')
     g = parser.add_argument_group('visualization')
-    # g.add_argument('--view-region', action='store_true')
+    g.add_argument('--view-region', action='store_true')
     g.add_argument('--view-timeseries', action='store_true')
+    g.add_argument('--view-all', action='store_true')
 
 
     o = parser.parse_args()
@@ -278,11 +341,15 @@ def main():
         # series = v.extract_timeseries(o.lon, o.lat)
         series = v.save_csv(o.lon, o.lat)
 
+    if o.view_all:
+        o.view_region = True
+        o.view_timeseries = True
+
     if o.view_region or o.view_timeseries:
         import matplotlib.pyplot as plt
         for v in variables:
             if o.view_region and o.view_timeseries:
-                fig, (ax, ax2) = plt.subplots(2, 1)
+                fig, (ax1, ax2) = plt.subplots(2, 1)
             elif o.view_region:
                 fig, ax1 = plt.subplots(1, 1)
             elif o.view_timeseries:
@@ -290,10 +357,13 @@ def main():
 
             # import view
             if o.view_region:
-                # ts = v.load_csv()
-                # ts.plot(ax=ax2)
-                pass
-                # view.view_region(v, area=area, lon=o.lon, lat=o.lat)
+                map = v.extract_map(area=area)
+                print(map)
+                # t, l, b, r = area
+                # ax1.imshow(map.values, extent=(l, r, b, t))
+                ax1.imshow(map.values, extent=map.extent)
+                ax1.set_title(v.dataset)
+                ax1.plot(o.lon, o.lat, 'ko')
 
             if o.view_timeseries:
                 ts = v.load_csv(o.lon, o.lat)
