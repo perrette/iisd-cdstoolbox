@@ -2,6 +2,7 @@
 """
 import os
 import zipfile
+import logging
 import numpy as np
 import netCDF4 as nc
 from scipy.interpolate import RegularGridInterpolator
@@ -347,13 +348,23 @@ def main():
 
     if o.view_region or o.view_timeseries:
         import matplotlib.pyplot as plt
+        try:
+            import cartopy
+            import cartopy.crs as ccrs
+            kwargs = dict(projection=ccrs.PlateCarree())
+        except ImportError:
+            logging.warning('install cartopy to benefit from coastlines')
+            cartopy = None
+
         for v in variables:
+            fig = plt.figure()
             if o.view_region and o.view_timeseries:
-                fig, (ax1, ax2) = plt.subplots(2, 1)
+                ax1 = plt.subplot(2, 1, 1, **kwargs)
+                ax2 = plt.subplot(2, 1, 2)
             elif o.view_region:
-                fig, ax1 = plt.subplots(1, 1)
+                ax1 = plt.subplot(1, 1, 1, **kwargs)
             elif o.view_timeseries:
-                fig, ax2 = plt.subplots(1, 1)
+                ax2 = plt.subplot(1, 1, 1)
 
             # import view
             if o.view_region:
@@ -364,6 +375,10 @@ def main():
                 ax1.imshow(map.values, extent=map.extent)
                 ax1.set_title(v.dataset)
                 ax1.plot(o.lon, o.lat, 'ko')
+
+                if cartopy:
+                    ax1.coastlines(resolution='10m')
+
 
             if o.view_timeseries:
                 ts = v.load_csv(o.lon, o.lat)
