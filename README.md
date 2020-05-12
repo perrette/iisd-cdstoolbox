@@ -6,13 +6,18 @@ Code related to offline processing of CDS Toolbox and CDS API data
 
 - Install Python 3 (for instance anaconda python)
 - Install the CDS API key: https://cds.climate.copernicus.eu/api-how-to
-- Install all dependencies (including the CDS API client `cdsapi`):
+- Install the CDS API client: `pip install cdsapi`
+- Install other dependencies:
 
 	pip install -r requirements.txt
 
-If the above command fails, and you have python anaconda installed, try the following:
+**Troubleshooting**
+
+If the `pip install` command fails, and you have python anaconda installed, try the following:
 
 	conda install --file requirements.txt
+
+If that fails too, you may need to go through the dependencies in `requirements.txt` one by one and try either `pip install` or `conda install` or other methods specific to that dependency.
 
 In the examples that follow, if you have both python2 and python3 installed, you might need to replace `python` with `python3`.
 
