@@ -372,7 +372,7 @@ def main():
                 print(map)
                 # t, l, b, r = area
                 # ax1.imshow(map.values, extent=(l, r, b, t))
-                ax1.imshow(map.values, extent=map.extent)
+                ax1.imshow(map.values[::-1], extent=map.extent)
                 ax1.set_title(v.dataset)
                 ax1.plot(o.lon, o.lat, 'ko')
 
