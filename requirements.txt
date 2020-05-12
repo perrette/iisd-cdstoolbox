@@ -1,3 +1,4 @@
+cdsapi
 numpy
 scipy
 dask

@@ -28,6 +28,9 @@ class Dataset:
 
         return res
 
+    def __repr__(self):
+        return f'{type(self).__name__}(self.dataset, {self.params}, self.downloaded_file)'
+
 
 class CMIP5(Dataset):
 
@@ -117,8 +120,10 @@ def make_area(lon, lat, w):
     lonw = np.rad2deg(w/disk_radius)
     return lat+latw, lon-lonw, lat-latw, lon+lonw
 
+
 locations = yaml.load(open('locations.yml'))
 assets = yaml.load(open('assets.yml'))
+
 
 def main():
     import argparse
@@ -163,7 +168,7 @@ def main():
         t, l, b, r = make_area(o.lon, o.lat, o.width_km)
         area = o.top or t, o.left or l, o.bottom or b, o.right or r
 
-    print(area)
+    print('area', area)
     # parser.error('check area')
 
     if not o.cmip5 and not o.era5 and not o.asset:
@@ -178,6 +183,9 @@ def main():
         for v in asset.get('era5', []):
             o.era5.append(v)
 
+    print('ERA5 variables', o.era5)
+    print('CMIP5 variables', o.cmip5)
+
 
     variables = []
     for name in o.cmip5:
@@ -185,6 +193,10 @@ def main():
 
     for name in o.era5:
         variables.append(ERA5(name, area=area))
+
+    # print('all variables:')
+    # for v in variables:
+    #     print(v)
 
     for v in variables:
         a = v.load()
