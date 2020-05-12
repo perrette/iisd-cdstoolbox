@@ -101,30 +101,33 @@ class Dataset:
         if time is None:
             time = dataarray.time[-1]        
         map = dataarray.sel(time=time)
-        lon = map.coords[self.lon]
-        lat = map.coords[self.lat]
+        lon = map.coords[self.lon].values
+        lat = map.coords[self.lat].values
 
         # we want to deal with increasing lat            
         if lat[1] < lat[0]: 
             map = map.isel({self.lat:slice(None, None, -1)})
-            lon = map.coords[self.lon]
-            lat = map.coords[self.lat]
+            lat = map.coords[self.lat].values
             assert lat[1] > lat[0]
 
         if area:
+            print('area', area)
             t, l, b, r = area
             ilon = ((lon >= l) & (lon <= r))
             ilat = ((lat <= t) & (lat >= b))
             map = map.isel({self.lon:ilon, self.lat:ilat})
-            lon = map.coords[self.lon]
-            lat = map.coords[self.lat]
+            lon = map.coords[self.lon].values
+            lat = map.coords[self.lat].values
+
+        if (lon.size < 2) or (lat.size < 2):
+            raise ValueError('region area is too small: point-wise map')
 
         # add extent as an attribute, for further plotting
         l = lon[0] - (lon[1]-lon[0])/2 # add half a grid cell
         r = lon[-1] + (lon[-1]-lon[-2])/2
         b = lat[0] - (lat[1]-lat[0])/2
         t = lat[-1] + (lat[-1]-lat[-2])/2
-        map.attrs['extent'] = l, r, b, t
+        map.attrs['extent'] = np.array((l, r, b, t)).tolist()
 
         return map
 
@@ -370,16 +373,17 @@ def main():
 
             # import view
             if o.view_region:
-                map = v.extract_map(area=area)
-                print(map)
-                # t, l, b, r = area
-                # ax1.imshow(map.values, extent=(l, r, b, t))
-                ax1.imshow(map.values[::-1], extent=map.extent)
-                ax1.set_title(v.dataset)
-                ax1.plot(o.lon, o.lat, 'ko')
+                try:
+                    map = v.extract_map(area=area)
+                    ax1.imshow(map.values[::-1], extent=map.extent)
+                    ax1.set_title(v.dataset)
+                    ax1.plot(o.lon, o.lat, 'ko')
 
-                if cartopy:
-                    ax1.coastlines(resolution='10m')
+                    if cartopy:
+                        ax1.coastlines(resolution='10m')
+                except:
+                    raise
+                    pass
 
 
             if o.view_timeseries:
