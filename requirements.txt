@@ -1,0 +1,4 @@
+numpy
+scipy
+dask
+xarray

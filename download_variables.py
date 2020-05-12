@@ -62,15 +62,15 @@ class CMIP5(Dataset):
 
         # extract all files if necessary
         with zipfile.ZipFile(self.downloaded_file, 'r') as zipObj:
-            listOfiles = zipObj.infolist()
+            listOfiles = zipObj.namelist()
 
             if not os.path.exists(listOfiles[0]):
                 print('Extracting all files...')
-                zipObj.extractall()
+                zipObj.extractall(path=self.folder)
 
         # return dataset 
         files = [os.path.join(self.folder, name) for name in listOfiles]
-        return xr.open_mfdataset(files)
+        return xr.open_mfdataset(files, combine='by_coords')
         #return da.read_nc()
 
 
