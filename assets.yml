@@ -1,6 +1,6 @@
 energy:
   cmip5: 
-    - 'total_precipitation'
+    - '2m_temperature'
     - 'mean_precipitation_flux'
     - 'runoff'
     - 'evaporation'
