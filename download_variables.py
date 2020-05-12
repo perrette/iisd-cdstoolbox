@@ -273,12 +273,12 @@ def main():
     g.add_argument('--lon', type=float)
     g.add_argument('--lat', type=float)
 
-    # g = parser.add_argument_group('ERA5 area')
-    # g.add_argument('--width-km', type=float, default=100, help='width of window (in km) around lon/lat (%(default)s km by default)')
-    # g.add_argument('-l','--left', type=float)
-    # g.add_argument('-r','--right', type=float)
-    # g.add_argument('-b','--bottom', type=float)
-    # g.add_argument('-t','--top', type=float)
+    g = parser.add_argument_group('area size controls')
+    g.add_argument('--width-km', type=float, default=100, help='width of window (in km) around lon/lat (%(default)s km by default)')
+    g.add_argument('-l','--left', type=float)
+    g.add_argument('-r','--right', type=float)
+    g.add_argument('-b','--bottom', type=float)
+    g.add_argument('-t','--top', type=float)
 
     g = parser.add_argument_group('CMIP5 control')
     g.add_argument('--model', default='ipsl_cm5a_mr')
@@ -302,12 +302,14 @@ def main():
         loc = {loc['name']: loc for loc in locations}[o.location]
         o.lon, o.lat = loc['lon'], loc['lat']
 
-    # if o.left and o.right and o.bottom and o.top:
-    #     area = o.top, o.left, o.bottom, o.right
-    # else:
-    #     t, l, b, r = make_area(o.lon, o.lat, o.width_km)
-    #     area = o.top or t, o.left or l, o.bottom or b, o.right or r
-    area = era5_tile_area(o.lon, o.lat)
+    if o.width_km or o.left and o.right and o.bottom and o.top:
+        if o.left and o.right and o.bottom and o.top:
+            area = o.top, o.left, o.bottom, o.right
+        else:
+            t, l, b, r = make_area(o.lon, o.lat, o.width_km)
+            area = o.top or t, o.left or l, o.bottom or b, o.right or r
+    else:
+        area = era5_tile_area(o.lon, o.lat)
 
 
     print('lon', o.lon)
