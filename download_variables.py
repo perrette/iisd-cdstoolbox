@@ -20,6 +20,12 @@ class Dataset:
         print(self.dataset)
         print(self.params)
         print('>',self.downloaded_file)
+        os.makedirs('download', exist_ok=True)
+
+        with open(os.path.join('download', 'log'), 'w+') as f:
+            f.write(self.dataset+'\n')
+            f.write(str(self.params)+'\n')
+            f.write(self.downloaded_file+'\n\n')
 
         res = c.retrieve(
             self.dataset,
@@ -29,7 +35,7 @@ class Dataset:
         return res
 
     def __repr__(self):
-        return f'{type(self).__name__}(self.dataset, {self.params}, self.downloaded_file)'
+        return f'{type(self).__name__}({self.dataset}, {self.params}, {self.downloaded_file})'
 
 
 class CMIP5(Dataset):
@@ -90,7 +96,7 @@ class ERA5(Dataset):
 
         self.folder = os.path.join('download', self.dataset, self.product_type)
         self.name = '{variable}_{year0}-{yearf}_{area[0]}-{area[1]}-{area[2]}-{area[3]}'.format(year0=self.year[0], yearf=self.year[-1], **vars(self))
-        self.downloaded_file = os.path.join(self.folder, self.name+'.zip')
+        self.downloaded_file = os.path.join(self.folder, self.name+'.nc')
 
     @property
     def params(self):
@@ -121,6 +127,18 @@ def make_area(lon, lat, w):
     return lat+latw, lon-lonw, lat-latw, lon+lonw
 
 
+def era5_tile_area(lon, lat, dx=10, dy=5):
+    """define a "tile" to re-use some of the files
+    """
+    if lon > 180: lon -= 360
+    lons = np.arange(-180, 180, dx)
+    lats = np.arange(-90, 90, dy)
+    j = np.searchsorted(lons, lon)
+    i = np.searchsorted(lats, lat)
+    area = lats[i], lons[j-1], lats[i-1], lons[j]
+    return np.array(area).tolist() # convert numpy data type to json-compatible python objects
+
+
 locations = yaml.load(open('locations.yml'))
 assets = yaml.load(open('assets.yml'))
 
@@ -138,12 +156,12 @@ def main():
     g.add_argument('--lon', type=float)
     g.add_argument('--lat', type=float)
 
-    g = parser.add_argument_group('area')
-    g.add_argument('--width-km', type=float, default=100, help='width of window (in km) around lon/lat (%(default)s km by default)')
-    g.add_argument('-l','--left', type=float)
-    g.add_argument('-r','--right', type=float)
-    g.add_argument('-b','--bottom', type=float)
-    g.add_argument('-t','--top', type=float)
+    # g = parser.add_argument_group('ERA5 area')
+    # g.add_argument('--width-km', type=float, default=100, help='width of window (in km) around lon/lat (%(default)s km by default)')
+    # g.add_argument('-l','--left', type=float)
+    # g.add_argument('-r','--right', type=float)
+    # g.add_argument('-b','--bottom', type=float)
+    # g.add_argument('-t','--top', type=float)
 
     g = parser.add_argument_group('CMIP5 control')
     g.add_argument('--model', default='ipsl_cm5a_mr')
@@ -162,14 +180,17 @@ def main():
         loc = {loc['name']: loc for loc in locations}[o.location]
         o.lon, o.lat = loc['lon'], loc['lat']
 
-    if o.left and o.right and o.bottom and o.top:
-        area = o.top, o.left, o.bottom, o.right
-    else:
-        t, l, b, r = make_area(o.lon, o.lat, o.width_km)
-        area = o.top or t, o.left or l, o.bottom or b, o.right or r
+    # if o.left and o.right and o.bottom and o.top:
+    #     area = o.top, o.left, o.bottom, o.right
+    # else:
+    #     t, l, b, r = make_area(o.lon, o.lat, o.width_km)
+    #     area = o.top or t, o.left or l, o.bottom or b, o.right or r
+    area = era5_tile_area(o.lon, o.lat)
 
+
+    print('lon', o.lon)
+    print('lat', o.lat)
     print('area', area)
-    # parser.error('check area')
 
     if not o.cmip5 and not o.era5 and not o.asset:
         parser.error('please provide ERA5 or CMIP5 variables, for example: `--era5 2m_temperature` or `--cmip5 2m_temperature`, or a registered asset, e.g. `--asset energy`')
