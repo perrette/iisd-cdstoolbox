@@ -55,6 +55,10 @@ class Dataset:
         os.makedirs(os.path.dirname(fname), exist_ok=True)
         series.to_csv(fname)
 
+    def load_csv(self, lon, lat, fname=None):
+        if fname is None:
+            fname = self.csvfile(lon, lat)
+        return pd.read_csv(fname, index_col=0)
 
     def __repr__(self):
         return f'{type(self).__name__}({self.dataset}, {self.params}, {self.downloaded_file})'
@@ -233,6 +237,10 @@ def main():
     # g = parser.add_argument_group('ERA5 control')
     # g.add_argument('--era5-start', default=2000, type=int, help='default: %(default)s')
     # g.add_argument('--era5-end', default=2019, type=int, help='default: %(default)s')
+    g = parser.add_argument_group('visualization')
+    # g.add_argument('--view-region', action='store_true')
+    g.add_argument('--view-timeseries', action='store_true')
+
 
     o = parser.parse_args()
 
@@ -282,6 +290,34 @@ def main():
     for v in variables:
         # series = v.extract_timeseries(o.lon, o.lat)
         series = v.save_csv(o.lon, o.lat)
+
+    if o.view_region or o.view_timeseries:
+        import matplotlib.pyplot as plt
+        for v in variables:
+            if o.view_region and o.view_timeseries:
+                fig, (ax, ax2) = plt.subplots(2, 1)
+            elif o.view_region:
+                fig, ax1 = plt.subplots(1, 1)
+            elif o.view_timeseries:
+                fig, ax2 = plt.subplots(1, 1)
+
+            # import view
+            if o.view_region:
+                # ts = v.load_csv()
+                # ts.plot(ax=ax2)
+                pass
+                # view.view_region(v, area=area, lon=o.lon, lat=o.lat)
+
+            if o.view_timeseries:
+                ts = v.load_csv(o.lon, o.lat)
+                # convert units for easier reading of graphs
+                ts.index = ts.index / 365.25 + 2000
+                ts.index.name = 'years since 2000-01-01'
+                ts.plot(ax=ax2)
+                ax2.set_title(v.dataset)
+
+        plt.show()
+
 
 if __name__ == '__main__':
     main()
