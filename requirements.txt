@@ -1,4 +1,6 @@
 numpy
+netCDF4
 scipy
 dask
 xarray
+pandas
