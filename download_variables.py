@@ -274,7 +274,7 @@ def main():
     g.add_argument('--lat', type=float)
 
     g = parser.add_argument_group('area size controls')
-    g.add_argument('--width-km', type=float, default=100, help='width of window (in km) around lon/lat (%(default)s km by default)')
+    g.add_argument('--width-km', type=float, help='width of window (in km) around lon/lat (%(default)s km by default)')
     g.add_argument('-l','--left', type=float)
     g.add_argument('-r','--right', type=float)
     g.add_argument('-b','--bottom', type=float)
