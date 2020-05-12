@@ -1,5 +1,6 @@
 # Project-specific files
 download
+csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

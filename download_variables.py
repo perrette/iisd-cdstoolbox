@@ -39,6 +39,23 @@ class Dataset:
 
         return res
 
+
+    def csvfile(self, lon, lat):
+        file = os.path.basename(self.downloaded_file)
+        path = os.path.dirname(self.downloaded_file)
+        path = path.replace('download', 'csv')
+        file, ext = os.path.splitext(file)
+        return os.path.join(path, file+f'_{lon}E_{lat}N'+'.csv')
+
+
+    def save_csv(self, lon, lat, fname=None):
+        if fname is None:
+            fname = self.csvfile(lon, lat)
+        series = self.extract_timeseries(lon, lat)
+        os.makedirs(os.path.dirname(fname), exist_ok=True)
+        series.to_csv(fname)
+
+
     def __repr__(self):
         return f'{type(self).__name__}({self.dataset}, {self.params}, {self.downloaded_file})'
 
@@ -261,12 +278,10 @@ def main():
     for name in o.era5:
         variables.append(ERA5(name, area=area))
 
-    # print('all variables:')
-    # for v in variables:
-    #     print(v)
+    # download and convert to csv
     for v in variables:
-        series = v.extract_timeseries(o.lon, o.lat)
-        print(series)
+        # series = v.extract_timeseries(o.lon, o.lat)
+        series = v.save_csv(o.lon, o.lat)
 
 if __name__ == '__main__':
     main()
