@@ -117,18 +117,19 @@ def make_area(lon, lat, w):
     lonw = np.rad2deg(w/disk_radius)
     return lat+latw, lon-lonw, lat-latw, lon+lonw
 
-
 locations = yaml.load(open('locations.yml'))
+assets = yaml.load(open('assets.yml'))
 
 def main():
     import argparse
     parser = argparse.ArgumentParser()
-    g = parser.add_argument_group()
+    g = parser.add_argument_group('variables or asset')
     g.add_argument('--cmip5', nargs='*', default=[], help='list of CMIP5-monthly variables to download')
     g.add_argument('--era5', nargs='*', default=[], help='list of ERA5-monthly variables to download')
+    g.add_argument('--asset', choices=list(assets.keys()), help='pre-defined list of variables, defined in assets.yml')
 
     g = parser.add_argument_group('location')
-    g.add_argument('--location', choices=[loc['name'] for loc in locations], help='location name')
+    g.add_argument('--location', choices=[loc['name'] for loc in locations], help='location name defined in locations.yml')
     g.add_argument('--lon', type=float)
     g.add_argument('--lat', type=float)
 
@@ -153,8 +154,8 @@ def main():
         parser.error('please provide a location, for instance `--location Welkenraedt`, or use custom lon and lat, e.g. `--lon 5.94 --lat 50.67`')
 
     elif o.location:
-        locs = {loc['name']: (loc['lon'], loc['lat']) for loc in locations}
-        o.lon, o.lat = locs[o.location]
+        loc = {loc['name']: loc for loc in locations}[o.location]
+        o.lon, o.lat = loc['lon'], loc['lat']
 
     if o.left and o.right and o.bottom and o.top:
         area = o.top, o.left, o.bottom, o.right
@@ -165,8 +166,17 @@ def main():
     print(area)
     # parser.error('check area')
 
-    if not o.cmip5 and not o.era5:
-        parser.error('please provide ERA5 or CMIP5 variables, for example: --era5 2m_temperature or --cmip5 2m_temperature')
+    if not o.cmip5 and not o.era5 and not o.asset:
+        parser.error('please provide ERA5 or CMIP5 variables, for example: `--era5 2m_temperature` or `--cmip5 2m_temperature`, or a registered asset, e.g. `--asset energy`')
+
+    elif o.asset:
+        # use variables pre-defined by asset
+        print(assets)
+        asset = assets[o.asset]
+        for v in asset.get('cmip5', []):
+            o.cmip5.append(v)
+        for v in asset.get('era5', []):
+            o.era5.append(v)
 
 
     variables = []
