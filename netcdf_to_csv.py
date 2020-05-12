@@ -5,6 +5,18 @@ import numpy as np
 import netCDF4 as nc 
 import pandas as pd
 
+def convert_time(ds, units='days since 2000-01-01'):
+    try:
+        dates = nc.num2date(ds['time'][:], ds['time'].units, ds['time'].calendar)
+        time = nc.date2num(dates, units, ds['time'].calendar) 
+    except Exception as error:
+        print('!! error message:', str(error))
+        print('!! failed to convert time units')
+        time = ds['time'][:]
+        units = 'unknown'
+    return time, units
+
+
 def process_file(filenc, units):
 
     ds = nc.Dataset(filenc)
@@ -12,15 +24,7 @@ def process_file(filenc, units):
     data = {}
     metadata = {}
 
-    time = ds['time'][:]
-
-    try:
-        dates = nc.num2date(ds['time'][:], ds['time'].units, ds['time'].calendar)
-        time = nc.date2num(dates, units, ds['time'].calendar) 
-    except Exception as error:
-        print('!! error message:', str(error))
-        print('!! failed to convert time units')
-        units = 'unknown'
+    time, units = convert_time(ds, units)
 
     data['time'] = time
     metadata['time'] = units

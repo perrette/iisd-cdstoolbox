@@ -3,10 +3,15 @@
 import os
 import zipfile
 import numpy as np
+import netCDF4 as nc
+from scipy.interpolate import RegularGridInterpolator
 import xarray as xr
+import pandas as pd
 import yaml
 # import dimarray as da
 import cdsapi
+
+from netcdf_to_csv import convert_time
 
 
 class Dataset:
@@ -64,7 +69,15 @@ class CMIP5(Dataset):
                 'period': self.period,
             }
 
-    def load(self):    
+    def get_varname(self, ds):
+        """get main variable name from netCDF.Dataset
+        """
+        variables = [v for v in ds.variables if ds[v].dimensions == ('time', 'lat', 'lon')]
+        assert len(variables) == 1, f'Expected one variable matching (time, lat, lon) dimensions, found {len(variables)}.\nVariables: {ds.variables}'
+        return variables[0]
+
+
+    def extract_timeseries(self, lon, lat):
         # download zip file
         if not os.path.exists(self.downloaded_file):
             self.download()
@@ -73,14 +86,33 @@ class CMIP5(Dataset):
         with zipfile.ZipFile(self.downloaded_file, 'r') as zipObj:
             listOfiles = zipObj.namelist()
 
-            if not os.path.exists(listOfiles[0]):
+            if not os.path.exists(os.path.join(self.folder, listOfiles[0])):
                 print('Extracting all files...')
                 zipObj.extractall(path=self.folder)
 
         # return dataset 
         files = [os.path.join(self.folder, name) for name in listOfiles]
-        return xr.open_mfdataset(files, combine='by_coords')
-        #return da.read_nc()
+
+        # alltimes, allvalues = zip(*[self._extract_timeseries(f, lon, lat) for f in files])
+        return pd.concat([self._extract_timeseries(f, lon, lat) for f in files])
+
+
+    def _extract_timeseries(self, f, lon, lat):
+        # variable name
+        with nc.Dataset(f) as ds:
+            variable = self.get_varname(ds)
+            time, units = convert_time(ds)
+
+        # load multiple files (rearrange along coordinates)
+        da = xr.open_dataset(f)[variable]
+        # extract a region around the point of interest
+        region = da.sel(lon=slice(lon-5, lon+5), lat=slice(lat-5, lat+5))
+        # bi-linear interpolation on the specific lon/lat
+        interpolator = RegularGridInterpolator((region.lon, region.lat), region.values.T)
+        values = interpolator(np.array((lon, lat)), method='linear').squeeze()
+        s = pd.Series(values, index=time, name=self.variable)
+        s.index.name = units
+        return s
 
 
 class ERA5(Dataset):
@@ -110,12 +142,26 @@ class ERA5(Dataset):
                 'area': self.area,
             }
 
+    def get_varname(self, ds):
+        """get main variable name from netCDF.Dataset
+        """
+        variables = [v for v in ds.variables if ds[v].dimensions == ('time', 'latitude', 'longitude')]
+        assert len(variables) == 1, f'Expected one variable matching (time, latitude, longitude) dimensions, found {len(variables)}.\nVariables: {ds.variables}'
+        return variables[0]
 
-    def load(self):
+    def extract_timeseries(self, lon, lat):
         if not os.path.exists(self.downloaded_file):
             self.download()
-
-        return xr.open_dataset(self.downloaded_file)
+        with nc.Dataset(self.downloaded_file) as ds:
+            variable = self.get_varname(ds)
+            time, units = convert_time(ds)
+        region = xr.open_dataset(self.downloaded_file)[variable]
+        # latitude is in reverse order for this dataset
+        interpolator = RegularGridInterpolator((region.longitude, region.latitude[::-1]), region.values.T[:, ::-1])
+        timeseries = interpolator(np.array((lon, lat)), method='linear').squeeze()
+        series = pd.Series(timeseries, index=time, name=self.variable)
+        series.index.name = units
+        return series
 
 
 def make_area(lon, lat, w):
@@ -190,7 +236,7 @@ def main():
 
     print('lon', o.lon)
     print('lat', o.lat)
-    print('area', area)
+    # print('area', area)
 
     if not o.cmip5 and not o.era5 and not o.asset:
         parser.error('please provide ERA5 or CMIP5 variables, for example: `--era5 2m_temperature` or `--cmip5 2m_temperature`, or a registered asset, e.g. `--asset energy`')
@@ -218,11 +264,9 @@ def main():
     # print('all variables:')
     # for v in variables:
     #     print(v)
-
     for v in variables:
-        a = v.load()
-        print(v.variable)
-        print(a)
+        series = v.extract_timeseries(o.lon, o.lat)
+        print(series)
 
 if __name__ == '__main__':
     main()
