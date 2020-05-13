@@ -4,7 +4,7 @@ Code related to offline processing of CDS Toolbox and CDS API data
 
 ## How does this code relate to the CDS API ?
 
-This code builds on the powerful CDS API but focuses on local impact analysis. It makes it easier to retrieve a timeseries for a specific location or region, and save the result to a CSV file (a simpler format than netCDF for most climate adaptation practitioners). The next step will be to combine variables across multiple datasets, and aggregate them into asset classes (such as all energy-related variables) and perform actions such as bias correction (use of ERA5 and CMIP5).
+This code builds on the powerful CDS API but focuses on local impact analysis specific for the IISD project. It makes it easier to retrieve a timeseries for a specific location or region, and save the result to a CSV file (a simpler format than netCDF for most climate adaptation practitioners). The next step will be to combine variables across multiple datasets, and aggregate them into asset classes (such as all energy-related variables) and perform actions such as bias correction (use of ERA5 and CMIP5).
 
 ## Download this code
 
