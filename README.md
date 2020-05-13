@@ -32,8 +32,14 @@ Examples of use:
     
 The variables are downloaded under `download`, and timeseries are extracted as csv file under `csv`.
 
-
 (work in progress)
+
+Planned features:
+
+- more metadata to csv files (like units)
+- `--variable temperature` (or precip etc) flag that is defined across datasets, and comes with some post-processing (e.g. temperature in degrees Celsius)
+- `--asset energy` parameter to download a predefined set of variables, and save these to one CSV file
+- bias-correction
 
 ## netcdf to csv
 
