@@ -7,9 +7,8 @@ Code related to offline processing of CDS Toolbox and CDS API data
 - Install Python 3 (for instance anaconda python)
 - Install the CDS API key: https://cds.climate.copernicus.eu/api-how-to
 - Install the CDS API client: `pip install cdsapi`
-- Install other dependencies:
-
-	pip install -r requirements.txt
+- Install other dependencies: `pip install -r requirements.txt`
+- Optional dependency for coastlines on plots: `conda install -c conda-forge cartopy` or see [docs](https://scitools.org.uk/cartopy/docs/latest/installing.html)
 
 **Troubleshooting**
 
@@ -23,9 +22,18 @@ In the examples that follow, if you have both python2 and python3 installed, you
 
 ## cds api
 
-    python download_assset.py --asset energy --location Welkenraedt
-    python download_assset.py --help
+Examples of use:
+
+    python download_variables.py --era5 2m_temperature 10m_wind_speed --lon 5.94 --lat 50.67
+    python download_variables.py --location Welkenraedt --asset energy
+    python download_variables.py --location Welkenraedt --era5 2m_temperature --cmip5 2m_temperature --view-timeseries
+    python download_variables.py --location Welkenraedt --era5 2m_temperature --cmip5 2m_temperature --view-all
+    python download_variables.py --location Welkenraedt --cmip5 2m_temperature --view-all --width 2000
+    python download_variables.py --help
     
+The variables are downloaded under `download`, and timeseries are extracted as csv file under `csv`.
+
+
 (work in progress)
 
 ## netcdf to csv
