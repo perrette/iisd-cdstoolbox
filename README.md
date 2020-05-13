@@ -37,7 +37,7 @@ Troubleshooting:
 
 **Examples of use**:
 
-Download ERA5 `2m_temperature` (monthly, single level):
+Download temperature and wind speed for ERA5 (monthly, single level):
 
     python download_variables.py --era5 2m_temperature 10m_wind_speed --lon 5.94 --lat 50.67
     
@@ -59,6 +59,11 @@ Full documentation:
 
     python download_variables.py --help
     
+Visit the CDS Datasets download pages, for more information about available variables, models and scenarios:
+- ERA5: https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels-monthly-means?tab=form
+- CMIP5: `https://cds.climate.copernicus.eu/cdsapp#!/dataset/projections-cmip5-monthly-single-levels?tab=form`
+In particular, clicking on "Show API request" provides information about spelling of the parameters, e.g. that "2m temperature" is spelled `2m_temperature` and "RCP 8.5" is spelled `rcp_8_5`.
+
 
 **Implemented Features**:
 
@@ -84,7 +89,7 @@ Full documentation:
 
 **Features under consideration**:
 
-- add support for more datasets ?
+- add support for more datasets
 
 
 **Known issues**:
