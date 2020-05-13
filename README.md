@@ -31,12 +31,26 @@ Troubleshooting:
 
 (work in progress)
 
-Examples of use:
+**Examples of use**:
+
+Download ERA5 `2m_temperature` (monthly, single level):
 
     python download_variables.py --era5 2m_temperature 10m_wind_speed --lon 5.94 --lat 50.67
+
+Use pre-defined location instead of `--lon` and `--lat`, and show a plot of downloaded time series for ERA5 and CMIP5:
+
     python download_variables.py --location Welkenraedt --era5 2m_temperature --cmip5 2m_temperature --view-timeseries
+    
+Show a map + time series of the downloaded data:
+    
     python download_variables.py --location Welkenraedt --era5 2m_temperature --cmip5 2m_temperature --view-all
+    
+Enlarge the view with 2000 km, for CMIP5 (but see known issues below):
+    
     python download_variables.py --location Welkenraedt --cmip5 2m_temperature --view-all --width 2000
+    
+Full documentation:
+
     python download_variables.py --help
     
 
