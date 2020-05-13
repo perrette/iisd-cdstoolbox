@@ -360,6 +360,7 @@ def main():
         except ImportError:
             logging.warning('install cartopy to benefit from coastlines')
             cartopy = None
+            kwargs = {}
 
         for v in variables:
             fig = plt.figure()
