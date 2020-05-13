@@ -102,7 +102,7 @@ In details:
 
 ## netcdf to csv
 
-Convert netcdf files downloaded from the CDS Toolbox into csv files:
+Convert netcdf timeseries files downloaded from the CDS Toolbox pages into csv files:
 
     python netcdf_to_csv.py data/*nc
 
