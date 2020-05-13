@@ -40,6 +40,8 @@ Troubleshooting:
 Download ERA5 `2m_temperature` (monthly, single level):
 
     python download_variables.py --era5 2m_temperature 10m_wind_speed --lon 5.94 --lat 50.67
+    
+The final result will be stored in `csv/reanalysis-era5-single-levels-monthly-means/monthly_averaged_reanalysis`, while intermediate result (regional tiles) are stored under `download/reanalysis-era5-single-levels-monthly-means/monthly_averaged_reanalysis`.
 
 Use pre-defined location instead of `--lon` and `--lat`, and show a plot of downloaded time series for ERA5 and CMIP5:
 
