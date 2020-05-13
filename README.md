@@ -58,7 +58,7 @@ Examples of use:
 - `--variable temperature` (or precip etc) parameter that will be defined across datasets, and comes with some post-processing (e.g. temperature in degrees Celsius)
 - `--asset energy` parameter to download a predefined set of variables, and save these to one CSV file
 - bias-correction by combining CMIP5 and ERA5
-
+- technical: harmonize downloaded netCDF files (e.g. dimensions are now named `lon` in CMIP5 and `longitude` in ERA5. Having one name will make simpler code)
 
 **Features under consideration**:
 
@@ -68,6 +68,7 @@ Examples of use:
 **Known issues**:
 
 - Problems for longitudes outside the [0, 180] range: will be solved in a future release.
+- Plotting areas for large regions that cross the longitude range above cause problems, for the reason outlined above.
 
 
 ## netcdf to csv
