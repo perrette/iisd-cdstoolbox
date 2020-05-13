@@ -81,15 +81,17 @@ In particular, clicking on "Show API request" provides information about spellin
 
 **Planned features**:
 
+Main features: 
+
+- Aggregate variables per asset class.
+- Bias-correction option by combining CMIP5 and ERA5 (monthly, single level)
+- Possibly add more datasets to match assets requirement (daily and hourly data for instance)
+
+In details:
+- Most additional planned features will involve post-processing of downloaded csv files, saved under an `assets` folder.
+- E.g. `--asset energy` parameter to download a predefined set of variables, and save these to CSV file(s) under `assets/energy.csv` or `assets/energy/<variable>.csv`, depending on the level of harmonization across variables.
 - more metadata to csv files (like units)
-- `--variable temperature` (or precip etc) parameter that will be defined and harmonized across datasets, and comes with some post-processing (e.g. temperature in degrees Celsius)
-- `--asset energy` parameter to download a predefined set of variables, and save these to one CSV file
-- bias-correction by combining CMIP5 and ERA5
-- technical: harmonize downloaded netCDF files (e.g. dimensions are now named `lon` in CMIP5 and `longitude` in ERA5. Having one name will make simpler code)
-
-**Features under consideration**:
-
-- add support for more datasets
+- technical: harmonize downloaded netCDF files (e.g. dimensions are now named `lon` in CMIP5 and `longitude` in ERA5. Having one name will make simpler code and fix the longitude issue below)
 
 
 **Known issues**:
