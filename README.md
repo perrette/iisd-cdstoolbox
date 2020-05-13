@@ -2,8 +2,17 @@
 
 Code related to offline processing of CDS Toolbox and CDS API data 
 
+## Download this code
+
+The easy way is to download the zipped archive (TODO: show link).
+
+The hacky way is to use git (only useful for frequent updates, to avoid having to download the archive every time):
+- First time: `git clone https://github.com/perrette/iisd-cdstoolbox.git`
+- Subsequent updates: `git pull` from inside the repository 
+
 ## Installation steps
 
+- Download the code (see above) and inside the folder.
 - Install Python 3, ideally Anaconda Python which comes with pre-installed packages
 - Install the CDS API key: https://cds.climate.copernicus.eu/api-how-to
 - Install the CDS API client: `pip install cdsapi`
@@ -18,6 +27,8 @@ Troubleshooting:
 
 ## cds api
 
+(work in progress)
+
 Examples of use:
 
     python download_variables.py --era5 2m_temperature 10m_wind_speed --lon 5.94 --lat 50.67
@@ -26,16 +37,38 @@ Examples of use:
     python download_variables.py --location Welkenraedt --cmip5 2m_temperature --view-all --width 2000
     python download_variables.py --help
     
-The variables are downloaded under `download`, and timeseries are extracted as csv file under `csv`.
 
-(work in progress)
+**Implemented Features**:
+
+- Download any ERA5 and CMIP5 variable directly to `csv` file, for any lon/lat location
+- The raw CDS API files are downloaded under `download`, and timeseries are extracted as csv file under `csv`.
+- Favourite locations can be defined in [locations.yml](locations.yml) and called with `--location` parameter, to avoid having to indicate `--lon`, `--lat` each time.
+- ERA5 is downloaded for the 2000-2019 period, CMIP5 for 2006-2100. 
+- Default CMIP5 scenario is `rcp_8_5` (RCP 8.5) and default CMIP5 model is `ipsl_cm5a_mr`. 
+- Any other model or and any other future scenario can be specified via `--model` and `--scenario` parameters.
+- CMIP5 data are downloaded for the whole globe (in zipped format), about 70Mb per variable and per model for the 2006-2100 period
+- ERA5 data are downloaded in predefined "tiles" (rectangles) of 5 degrees latitude and 10 degrees longitude, for easier re-use in nearby locations (no need to download the full file again)
+- Visualize results via `--view-timeseries`, `--view-region` or `--view-area` parameters (experimental).
+- Possibility to specify a different region via `--width` (experimental, with issues)
+
 
 **Planned features**:
 
 - more metadata to csv files (like units)
-- `--variable temperature` (or precip etc) flag that is defined across datasets, and comes with some post-processing (e.g. temperature in degrees Celsius)
+- `--variable temperature` (or precip etc) parameter that will be defined across datasets, and comes with some post-processing (e.g. temperature in degrees Celsius)
 - `--asset energy` parameter to download a predefined set of variables, and save these to one CSV file
-- bias-correction
+- bias-correction by combining CMIP5 and ERA5
+
+
+**Features under consideration**:
+
+- add support for more datasets ?
+
+
+**Known issues**:
+
+- Problems for longitudes outside the [0, 180] range: will be solved in a future release.
+
 
 ## netcdf to csv
 
