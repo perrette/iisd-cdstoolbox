@@ -22,7 +22,7 @@ The hacky way is to use git (only useful during development, for frequent update
 - Install Python 3, ideally Anaconda Python which comes with pre-installed packages
 - Install the CDS API key: https://cds.climate.copernicus.eu/api-how-to
 - Install the CDS API client: `pip install cdsapi`
-- Install other dependencies: `conda install --file requirements.txt` or `pip install -r requirements.txt`
+- Install other [dependencies](requirements.txt): `conda install --file requirements.txt` or `pip install -r requirements.txt`
 - _Optional_ dependency for coastlines on plots: `conda install -c conda-forge cartopy` or see [docs](https://scitools.org.uk/cartopy/docs/latest/installing.html)
 - _Optional_ dependency: CDO (might be needed later, experimental): `conda install -c conda-forge python-cdo`
 
