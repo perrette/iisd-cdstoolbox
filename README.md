@@ -4,7 +4,9 @@ Code related to offline processing of CDS Toolbox and CDS API data
 
 ## Download this code
 
-The easy way is to download the zipped archive (TODO: show link).
+The easy way is to download the zipped archive:
+- latest (development): https://github.com/perrette/iisd-cdstoolbox/archive/master.zip
+- or check stable releases with description of changes: https://github.com/perrette/iisd-cdstoolbox/releases (see assets at the bottom of each release to download a zip version)
 
 The hacky way is to use git (only useful for frequent updates, to avoid having to download the archive every time):
 - First time: `git clone https://github.com/perrette/iisd-cdstoolbox.git`
