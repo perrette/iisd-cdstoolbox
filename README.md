@@ -41,13 +41,13 @@ Download temperature and wind speed for ERA5 (monthly, single level):
 
     python download_variables.py --era5 2m_temperature 10m_wind_speed --lon 5.94 --lat 50.67
     
-The corresponding csv timeseries will be stored in `csv/reanalysis-era5-single-levels-monthly-means/monthly_averaged_reanalysis`, while raw downloaded data from the CDS API (regional tiles in netcdf format) are stored under `download/reanalysis-era5-single-levels-monthly-means/monthly_averaged_reanalysis`.
+The corresponding csv timeseries will be stored in `csv/`, while raw downloaded data from the CDS API (regional tiles in netcdf format) are stored under `download/` (same subfolder). The subfolder for `--era5` variables is `reanalysis-era5-single-levels-monthly-means/monthly_averaged_reanalysis`. The time period for the ERA5 dataset is 2000-2019.
 
 Use pre-defined location instead of `--lon` and `--lat`, and show a plot of downloaded time series for ERA5 and CMIP5:
 
     python download_variables.py --location Welkenraedt --era5 2m_temperature --cmip5 2m_temperature --view-timeseries
 
-The CMIP5 timeseries (monthly, single level) are stored under `csv/projections-cmip5-monthly-single-levels/` while the raw download data (global zip file, and extracted global netcdf files in the same folder) are stored under `download/projections-cmip5-monthly-single-levels/`.
+Same folder conventions as for the ERA5 timeseries, except that the CMIP5 (monthly, single level) subfolder is `projections-cmip5-monthly-single-levels`. The raw download data is a zip file that contains global netcdf file(s), then extracted to the same folder. Note that one such global netCDF file is 90M (unzipped). The time period for the CMIP5 dataset is 2006-2100.
     
 Show a map + time series of the downloaded data:
     
