@@ -25,7 +25,6 @@ In the examples that follow, if you have both python2 and python3 installed, you
 Examples of use:
 
     python download_variables.py --era5 2m_temperature 10m_wind_speed --lon 5.94 --lat 50.67
-    python download_variables.py --location Welkenraedt --asset energy
     python download_variables.py --location Welkenraedt --era5 2m_temperature --cmip5 2m_temperature --view-timeseries
     python download_variables.py --location Welkenraedt --era5 2m_temperature --cmip5 2m_temperature --view-all
     python download_variables.py --location Welkenraedt --cmip5 2m_temperature --view-all --width 2000

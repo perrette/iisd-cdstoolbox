@@ -269,7 +269,7 @@ def main():
     g = parser.add_argument_group('variables or asset')
     g.add_argument('--cmip5', nargs='*', default=[], help='list of CMIP5-monthly variables to download')
     g.add_argument('--era5', nargs='*', default=[], help='list of ERA5-monthly variables to download')
-    g.add_argument('--asset', choices=list(assets.keys()), help='pre-defined list of variables, defined in assets.yml')
+    g.add_argument('--asset', choices=list(assets.keys()), help='pre-defined list of variables, defined in assets.yml (experimental)')
 
     g = parser.add_argument_group('location')
     g.add_argument('--location', choices=[loc['name'] for loc in locations], help='location name defined in locations.yml')
