@@ -56,13 +56,22 @@ class Dataset:
         os.makedirs(os.path.dirname(fname), exist_ok=True)
         series.to_csv(fname)
 
+
     def load_csv(self, lon, lat, fname=None):
         if fname is None:
             fname = self.csvfile(lon, lat)
-        return pd.read_csv(fname, index_col=0)
+        return pd.read_csv(fname, index_col=0, comment='#')
+
 
     def __repr__(self):
         return f'{type(self).__name__}({self.dataset}, {self.params}, {self.downloaded_file})'
+
+    # def get_units(self):
+    #     ' get units from netCDF file'
+    #     files = self.get_ncfiles()
+    #     with nc.Dataset(files[0]) as ds:
+    #         varname = self.get_varname(ds)
+    #         return getattr(ds[varname], 'units', '')
 
     def get_varname(self, ds):
         """get main variable name from netCDF.Dataset
@@ -82,7 +91,8 @@ class Dataset:
             self.download()
         with nc.Dataset(f) as ds:
             variable = self.get_varname(ds)
-            time, units = convert_time(ds)
+            time, time_units = convert_time(ds)
+
         region = xr.open_dataset(f)[variable]
         londim = getattr(region, self.lon)
         latdim = getattr(region, self.lat)
@@ -92,8 +102,8 @@ class Dataset:
         else:
             interpolator = RegularGridInterpolator((londim, latdim), region.values.T)
         timeseries = interpolator(np.array((lon, lat)), method='linear').squeeze()
-        series = pd.Series(timeseries, index=time, name=self.variable)
-        series.index.name = units
+        series = pd.Series(timeseries, index=time, name=f'{self.variable} ({region.units})')
+        series.index.name = time_units
         return series
 
 
@@ -128,7 +138,6 @@ class Dataset:
         b = lat[0] - (lat[1]-lat[0])/2
         t = lat[-1] + (lat[-1]-lat[-2])/2
         map.attrs['extent'] = np.array((l, r, b, t)).tolist()
-
         return map
 
 
@@ -385,7 +394,8 @@ def main():
             if o.view_region or o.png_region:
                 try:
                     map = v.extract_map(area=area)
-                    ax1.imshow(map.values[::-1], extent=map.extent)
+                    h = ax1.imshow(map.values[::-1], extent=map.extent)
+                    plt.colorbar(h, ax=ax1, label=f'{v.variable} ({map.units})')
                     ax1.set_title(v.dataset)
                     ax1.plot(o.lon, o.lat, 'ko')
 
