@@ -393,7 +393,7 @@ def main():
                         ax1.coastlines(resolution='10m')
 
                     if o.png_region:
-                        fig1.savefig(v.csvfile(o.lon, o.lat).replace('.csv', '.png'))
+                        fig1.savefig(v.csvfile(o.lon, o.lat).replace('.csv', '-region.png'))
                     if not o.view_region:
                         plt.close(fig1)
                 except:
