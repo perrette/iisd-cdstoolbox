@@ -294,6 +294,8 @@ def main():
     g.add_argument('--view-region', action='store_true')
     g.add_argument('--view-timeseries', action='store_true')
     g.add_argument('--view-all', action='store_true')
+    g.add_argument('--png-region', action='store_true')
+    g.add_argument('--png-timeseries', action='store_true')
 
 
     o = parser.parse_args()
@@ -347,11 +349,11 @@ def main():
         # series = v.extract_timeseries(o.lon, o.lat)
         series = v.save_csv(o.lon, o.lat)
 
-    if o.view_all:
-        o.view_region = True
-        o.view_timeseries = True
+    if (o.png_region or o.png_timeseries) and o.view_all:
+        logging.warning('--view-all is not possible together with --png flags')
+        o.view_all = False
 
-    if o.view_region or o.view_timeseries:
+    if o.view_region or o.view_timeseries or o.png_region or o.png_timeseries or o.view_all:
         import matplotlib.pyplot as plt
         try:
             import cartopy
@@ -363,17 +365,24 @@ def main():
             kwargs = {}
 
         for v in variables:
-            fig = plt.figure()
-            if o.view_region and o.view_timeseries:
+            if o.view_all:
+                fig = plt.figure()
                 ax1 = plt.subplot(2, 1, 1, **kwargs)
                 ax2 = plt.subplot(2, 1, 2)
-            elif o.view_region:
-                ax1 = plt.subplot(1, 1, 1, **kwargs)
-            elif o.view_timeseries:
-                ax2 = plt.subplot(1, 1, 1)
+                o.view_region = True
+                o.view_timeseries = True
+
+            else:
+                if o.view_region or o.png_region:
+                    fig1 = plt.figure()
+                    ax1 = plt.subplot(1, 1, 1, **kwargs)
+
+                if o.view_timeseries or o.png_region:
+                    fig2 = plt.figure()
+                    ax2 = plt.subplot(1, 1, 1)
 
             # import view
-            if o.view_region:
+            if o.view_region or o.png_region:
                 try:
                     map = v.extract_map(area=area)
                     ax1.imshow(map.values[::-1], extent=map.extent)
@@ -382,18 +391,28 @@ def main():
 
                     if cartopy:
                         ax1.coastlines(resolution='10m')
+
+                    if o.png_region:
+                        fig1.savefig(v.csvfile(o.lon, o.lat).replace('.csv', '.png'))
+                    if not o.view_region:
+                        plt.close(fig1)
                 except:
                     raise
                     pass
 
 
-            if o.view_timeseries:
+            if o.view_timeseries or o.png_timeseries:
                 ts = v.load_csv(o.lon, o.lat)
                 # convert units for easier reading of graphs
                 ts.index = ts.index / 365.25 + 2000
                 ts.index.name = 'years since 2000-01-01'
                 ts.plot(ax=ax2)
                 ax2.set_title(v.dataset)
+
+                if o.png_timeseries:
+                    fig2.savefig(v.csvfile(o.lon, o.lat).replace('.csv', '.png'))
+                if not o.view_timeseries:
+                    plt.close(fig2)
 
         plt.show()
 
