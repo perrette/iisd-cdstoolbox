@@ -13,6 +13,7 @@ energy:
     - mean_runoff_rate
     - mean_evaporation_rate
     - 10m_wind_speed
-    - 100m_wind_speed
+    - 100m_u_component_of_wind
+    - 100m_v_component_of_wind
     - mean_surface_downward_short_wave_radiation_flux
-    - dewpoint_temperature
+      #- dewpoint_temperature
