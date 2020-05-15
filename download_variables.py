@@ -268,8 +268,121 @@ def era5_tile_area(lon, lat, dx=10, dy=5):
     return np.array(area).tolist() # convert numpy data type to json-compatible python objects
 
 
-locations = yaml.load(open('locations.yml'))
-assets = yaml.load(open('assets.yml'))
+class DatasetVariable:
+    """this class contains information to map raw CDS API variable from a given dataset onto the cross-dataset variable definition"""
+    def __init__(self, name, dataset, scale=1, offset=0, transform=None, note='', **kwargs):
+        self.name = name
+        self.dataset = dataset
+        self.scale = scale
+        self.offset = offset
+        self.transform = transform
+        self.note = note
+        if kwargs:
+            logging.error(f'unknown field in {name}:{dataset} --> {kwargs}. Valid fields are: name, dataset, scale, offset, transform, note.')
+
+    @classmethod
+    def fromdef(cls, variable, definition):
+        """from definition file"""
+        if type(definition) is str:
+            definition = {'name': variable.name, 'dataset': definition}
+        assert isinstance(definition, dict), f'expected a dict, got {type(definition)} : {definition}'
+        
+        if 'name' not in definition:
+            definition['name'] = variable.name
+
+        if 'transform' in definition:
+            transform = definition.pop('transform')
+            logging.warning(f'{definition["name"]}: transform support is not yet implemented, use scale and offset if possible. Skipping transform.')
+
+        return cls(**definition)
+
+    def todef(self):
+        return vars(self)
+
+    def postprocess(self, data):
+        data2 = (data + self.offset)*self.scale
+        if self.transform:
+            data2 = self.transform(data2)
+        return data2
+
+
+class Variable:
+    def __init__(self, name, units, description='', datasets=None, **kwargs):
+        self.name = name
+        self.units = units
+        self.description = description
+        self.datasets = datasets or []
+
+        if kwargs:
+            logging.error(f'unknown field in for variable {name} : {kwargs}. Valid fields are: name, units, description, datasets.')
+
+    @classmethod
+    def fromdef(cls, definition):
+        """from definition file"""
+        dataset_definitions = definition.pop('datasets', [])
+
+        # legacy syntax with 'era5' and 'cmip5' fields
+        # --> insert these in the 'datasets' list of dataset variables
+        for field in ['era5', 'cmip5']:
+            if field in definition:
+                logging.warning('preferred definition is as a dataset list')
+                vdef = definition.pop(field)
+                vdef['dataset'] = field
+                dataset_definitions.append(vdef)
+
+
+        variable = cls(**definition)
+
+        for vdef in dataset_definitions:
+            dataset = DatasetVariable.fromdef(variable, vdef)
+            variable.datasets.append(dataset)
+
+        return variable
+
+    def todef(self):
+        defs = vars(self).copy()
+        defs['datasets'] = [dataset.todef() for dataset in defs.pop('datasets')]
+        return defs
+
+    def __repr__(self):
+        return yaml.dump(self.todef(), sort_keys=False, default_flow_style=False)
+
+
+locations = yaml.safe_load(open('locations.yml'))
+variables_def = yaml.safe_load(open('variables.yml'))
+custom_variables = [Variable.fromdef(element) for element in variables_def]
+assets = yaml.safe_load(open('assets.yml'))
+
+custom_variables_byname = {v.name:v for v in custom_variables}
+
+
+def define_variable_by_name(name):
+    """initialize Variable instance by name
+    """
+    if name not in custom_variables_byname:
+        logging.warning(f'{name} is not defined in variables.yml. Standard definition assumed.')
+        variable = Variable.fromdef({'name':name, 'units':'', 'datasets': ['era5', 'cmip5']})
+    else:
+        variable = custom_variables_byname[name]
+
+    return variable
+
+
+def define_dataset_variable(variable, dataset, **kwargs):
+    if dataset == 'era5':
+        year = kwargs.pop('year')
+        area = kwargs.pop('area')
+        return ERA5(variable.name, year, area)
+
+    elif dataset == 'cmip5':
+        model = kwargs.pop('model')
+        scenario = kwargs.pop('scenario')
+        period = kwargs.pop('period')
+        ensemble = kwargs.pop('ensemble', None)
+        return CMIP5(variable.name, model, scenario, period, ensemble=ensemble)
+
+    else:
+        raise ValueError(f'unknown dataset: {dataset}')
 
 
 def main():
@@ -334,13 +447,19 @@ def main():
         parser.error('please provide ERA5 or CMIP5 variables, for example: `--era5 2m_temperature` or `--cmip5 2m_temperature`, or a registered asset, e.g. `--asset energy`')
 
     elif o.asset:
-        # use variables pre-defined by asset
-        print(assets)
-        asset = assets[o.asset]
-        for v in asset.get('cmip5', []):
-            o.cmip5.append(v)
-        for v in asset.get('era5', []):
-            o.era5.append(v)
+        # more complex download_variables2 syntax re-used here
+        # the variables defined in asset are appended to --cmip5 and --era5 flags.
+        asset = assets[o.asset]  
+        cvars = {v.name: v for v in custom_variables}  # pre-defined variables
+        for vname in asset:
+            cvar = define_variable_by_name(vname)  # Variable class 
+            for dataset_variable in cvar.datasets:  
+                if dataset_variable.dataset == 'era5':
+                    o.era5.append(dataset_variable.name)
+                elif dataset_variable.dataset == 'cmip5':
+                    o.cmip5.append(dataset_variable.name)
+                else:
+                    logging.warning(f'dataset {dataset_variable.dataset} is not supported')
 
     print('ERA5 variables', o.era5)
     print('CMIP5 variables', o.cmip5)

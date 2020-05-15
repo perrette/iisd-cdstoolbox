@@ -1,19 +1,38 @@
 energy:
-  cmip5: 
-    - 2m_temperature
-    - mean_precipitation_flux
-    - runoff
-    - evaporation
-    - 10m_wind_speed
-    - surface_solar_radiation_downwards
-    - near_surface_relative_humidity
-  era5:
-    - 2m_temperature
-    - mean_total_precipitation_rate
-    - mean_runoff_rate
-    - mean_evaporation_rate
-    - 10m_wind_speed
-    - 100m_u_component_of_wind
-    - 100m_v_component_of_wind
-    - mean_surface_downward_short_wave_radiation_flux
-      #- dewpoint_temperature
+- 2m_temperature
+- precipitation
+- runoff
+- evaporation
+- surface_solar_radiation
+- 10m_wind_speed
+# - 100m_u_component_of_wind
+# - 100m_v_component_of_wind
+
+nature:
+- 2m_temperature
+- precipitation
+
+irrigation:
+- precipitation
+- 2m_temperature
+- runoff
+- evaporation
+- 10m_wind_speed
+
+wastewater:
+- 2m_temperature
+- precipitation
+- runoff
+- evaporation
+
+buildings:
+- 2m_temperature
+- precipitation
+- solar_radiation
+
+roads:
+- 2m_temperature
+- precipitation
+- evaporation
+- runoff
+- solar_radiation

@@ -1,0 +1,51 @@
+- name: 2m_temperature
+  units: degrees Celsius
+  description: 2-m air temperature
+  era5:
+    offset: -273.15
+    note: Kelvin to degrees C
+  cmip5:
+    offset: -273.15
+- name: precipitation
+  units: mm per month
+  description: Total precipitation (including snow)
+  era5:
+    name: mean_total_precipitation_rate
+    scale: 2592000
+    note: mm/s to mm / month
+  cmip5:
+    name: mean_precipitation_flux
+    scale: 2592000000
+    note: m/s to mm / month
+- name: runoff
+  units: mm per month
+  description: Runoff
+  era5:
+    name: mean_runoff_rate
+    scale: 2592000
+  cmip5:
+    name: runoff
+    scale: 2592000000
+- name: evaporation
+  units: mm per month
+  description: Evaporation
+  era5:
+    name: mean_evaporation_rate
+    scale: 2592000
+  cmip5:
+    name: evaporation
+    scale: 2592000000
+- name: 10m_wind_speed
+  units: m / s
+  description: Wind speed magnitude at 10 m
+  datasets: 
+    - era5
+    - cmip5
+- name: surface_solar_radiation
+  units: W / m^2
+  description: Solar radiation at the surface (accounts for shadowing from clouds
+    and dust, depending on model formulation)
+  era5:
+    name: mean_surface_downward_short_wave_radiation_flux
+  cmip5:
+    name: surface_solar_radiation_downwards
