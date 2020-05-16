@@ -10,6 +10,7 @@ import xarray as xr
 import pandas as pd
 import yaml
 # import dimarray as da
+import datetime
 import cdsapi
 
 from netcdf_to_csv import convert_time
@@ -86,6 +87,7 @@ class Dataset:
             self.download()
         with nc.Dataset(f) as ds:
             variable = self.get_varname(ds)
+            # time = nc.num2date(ds['time'][:], ds['time'].units, ds['time'].calendar)
             time, time_units = convert_time(ds)
 
         region = xr.open_dataset(f)[variable]
@@ -104,7 +106,7 @@ class Dataset:
         units = self.units or region.units  # use user-defined units if any or else read from file
 
         series = pd.Series(timeseries, index=time, name=f'{self.variable} ({units})')
-        series.index.name = time_units
+        series.index.units = time_units
 
         return series
 
@@ -289,19 +291,28 @@ variables_def = yaml.safe_load(open('indicators.yml'))
 assets = yaml.safe_load(open('assets.yml'))
 
 
+time_units = 'days since 2000-01-01'
+
+def load_csv(fname):
+    return pd.read_csv(fname, index_col=0, comment='#')
+
+def save_csv(series, fname):
+    series.to_csv(fname)
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser()
     g = parser.add_argument_group('variables or asset')
-    g.add_argument('--cmip5', nargs='*', default=[], help='list of CMIP5-monthly variables to download')
-    g.add_argument('--era5', nargs='*', default=[], help='list of ERA5-monthly variables to download')
+    # g.add_argument('--cmip5', nargs='*', default=[], help='list of CMIP5-monthly variables to download')
+    # g.add_argument('--era5', nargs='*', default=[], help='list of ERA5-monthly variables to download')
     g.add_argument('--indicators', nargs='*', default=[], choices=[vdef['name'] for vdef in variables_def], help='list of custom indicators to download')
     g.add_argument('--asset', choices=list(assets.keys()), help='pre-defined list of variables, defined in assets.yml (experimental)')
     g.add_argument('--dataset', choices=['era5', 'cmip5'], help='datasets for --variable and --asset')
 
     g = parser.add_argument_group('filters (post-processing)')
     g.add_argument('--bias-correction', action='store_true', help='align CMIP5 variables with matching ERA5')
-    g.add_argument('--reference-period', default='2006-2019', help='reference period for bias-correction (default: %(default)s)')
+    g.add_argument('--reference-period', default=[2006, 2019], nargs=2, type=int, help='reference period for bias-correction (default: %(default)s)')
 
     g = parser.add_argument_group('location')
     g.add_argument('--location', choices=[loc['name'] for loc in locations], help='location name defined in locations.yml')
@@ -319,9 +330,11 @@ def main():
     g.add_argument('--model', default='ipsl_cm5a_mr')
     g.add_argument('--experiment', choices=['rcp_2_6', 'rcp_4_5', 'rcp_6_0', 'rcp_8_5'], default='rcp_8_5')
     g.add_argument('--period', default='200601-210012')
+
     # g = parser.add_argument_group('ERA5 control')
     # g.add_argument('--era5-start', default=2000, type=int, help='default: %(default)s')
     # g.add_argument('--era5-end', default=2019, type=int, help='default: %(default)s')
+
     g = parser.add_argument_group('visualization')
     g.add_argument('--view-region', action='store_true')
     g.add_argument('--view-timeseries', action='store_true')
@@ -352,18 +365,10 @@ def main():
     print('lon', o.lon)
     print('lat', o.lat)
 
+    if not o.asset and not o.indicators:
+        parser.error('please provide indicators, for example: `--indicators 2m_temperature` or asset, e.g. `--asset energy`')
+
     variables = []
-
-    if not o.cmip5 and not o.era5 and not o.asset and not o.indicators:
-        parser.error('please provide ERA5 or CMIP5 variables, for example: `--era5 2m_temperature` or `--cmip5 2m_temperature` or custom variable `--variable 2m_temperature` or asset, e.g. `--asset energy`')
-
-    ## simple --era5 or --cmip5 flags
-    variables = []
-    for name in o.cmip5:
-        variables.append(CMIP5(name, o.model, o.experiment, o.period))
-
-    for name in o.era5:
-        variables.append(ERA5(name, area=area))
 
     # assets only contain indicators
     if o.asset:
@@ -376,19 +381,21 @@ def main():
     vdef_by_name = {v['name'] : v for v in variables_def}
     for name in o.indicators:
         vdef = vdef_by_name[name]
-        if not o.dataset or o.dataset == 'era5':
-            vdef2 = vdef.get('era5',{})
-            transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
-            era5 = ERA5(vdef2.get(name, name), area=area, transform=transform, units=vdef['units'], alias=name)
+
+        vdef2 = vdef.get('era5',{})
+        transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
+        era5 = ERA5(vdef2.get(name, name), area=area, transform=transform, units=vdef['units'], alias=name)
+
+        if not o.dataset or o.dataset == 'era5' or o.bias_correction:
             variables.append(era5)
 
-        if not o.dataset or o.dataset == 'cmip5':
-            vdef2 = vdef.get('cmip5',{})
-            transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
-            cmip5 = CMIP5(vdef2.get(name, name), o.model, o.experiment, o.period, transform=transform, units=vdef['units'], alias=name)
-            variables.append(cmip5)
+        vdef2 = vdef.get('cmip5',{})
+        transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
+        cmip5 = CMIP5(vdef2.get(name, name), o.model, o.experiment, o.period, transform=transform, units=vdef['units'], alias=name)
+        cmip5.reference = era5
 
-    print('variables to download:', variables)
+        if not o.dataset or o.dataset == 'cmip5':
+            variables.append(cmip5)
 
     # folder structure for CSV results
     loc_folder = o.location.lower() if o.location else f'{o.lat}N-{o.lon}E' 
@@ -400,6 +407,22 @@ def main():
             v.download()
         series = v.extract_timeseries(o.lon, o.lat)
 
+        # additional transform for bias correction
+        if o.bias_correction and isinstance(v, CMIP5):
+            logging.info(f'apply bias correction to {v.dataset}: {v.variable}')
+            print(f'apply bias correction to {v.dataset}: {v.variable}')
+            # ERA5 was already loaded
+            era5 = load_csv(v.reference.csv_file)
+            y1, y2 = o.reference_period
+            t1 = nc.date2num(datetime.datetime(y1, 1,1), time_units)
+            t2 = nc.date2num(datetime.datetime(y1, 12,12), time_units)
+            climatology = era5.loc[t1:t2].mean()
+            ref = series.loc[t1:t2].mean()
+            delta = climatology - ref
+            print('bias corrected:', delta)
+            series = series + delta.values
+
+
         if isinstance(v, ERA5):
             set_folder = 'era5'
         elif isinstance(v, CMIP5):
@@ -410,7 +433,7 @@ def main():
         folder = os.path.join('indicators', loc_folder, asset_folder, set_folder)
         os.makedirs(folder, exist_ok=True)
         v.csv_file = os.path.join(folder, (v.alias or v.variable) + '.csv')
-        series.to_csv(v.csv_file)
+        save_csv(series, v.csv_file)
 
 
     if (o.png_region or o.png_timeseries) and o.view_all:
