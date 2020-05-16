@@ -17,6 +17,30 @@ from netcdf_to_csv import convert_time
 
 class Dataset:
     
+    def __init__(self, dataset, params, downloaded_file, transform=None, alias=None, units=None, dataset_alias=None):
+        self.dataset = dataset
+        self.params = params
+        self.downloaded_file = downloaded_file
+        self.transform = transform
+        self.units = units
+        self.alias = alias
+        self.dataset_alias = dataset_alias
+
+    def __getattr__(self, name):
+        if name in self.params:
+            return self.params[name]
+        raise AttributeError(name)
+
+    @property
+    def folder(self):
+        return os.path.dirname(self.downloaded_file)
+
+    @property
+    def name(self):
+        basename = os.path.basename(self.downloaded_file)
+        name, ext = os.path.splitext(basename)
+        return name
+
     def download(self):
         c = cdsapi.Client()
 
@@ -41,37 +65,8 @@ class Dataset:
         return res
 
 
-    def csvfile(self, lon, lat):
-        file = os.path.basename(self.downloaded_file)
-        path = os.path.dirname(self.downloaded_file)
-        path = path.replace('download', 'csv')
-        file, ext = os.path.splitext(file)
-        return os.path.join(path, file+f'_{lon}E_{lat}N'+'.csv')
-
-
-    def save_csv(self, lon, lat, fname=None):
-        if fname is None:
-            fname = self.csvfile(lon, lat)
-        series = self.extract_timeseries(lon, lat)
-        os.makedirs(os.path.dirname(fname), exist_ok=True)
-        series.to_csv(fname)
-
-
-    def load_csv(self, lon, lat, fname=None):
-        if fname is None:
-            fname = self.csvfile(lon, lat)
-        return pd.read_csv(fname, index_col=0, comment='#')
-
-
     def __repr__(self):
         return f'{type(self).__name__}({self.dataset}, {self.params}, {self.downloaded_file})'
-
-    # def get_units(self):
-    #     ' get units from netCDF file'
-    #     files = self.get_ncfiles()
-    #     with nc.Dataset(files[0]) as ds:
-    #         varname = self.get_varname(ds)
-    #         return getattr(ds[varname], 'units', '')
 
     def get_varname(self, ds):
         """get main variable name from netCDF.Dataset
@@ -102,8 +97,15 @@ class Dataset:
         else:
             interpolator = RegularGridInterpolator((londim, latdim), region.values.T)
         timeseries = interpolator(np.array((lon, lat)), method='linear').squeeze()
-        series = pd.Series(timeseries, index=time, name=f'{self.variable} ({region.units})')
+
+        if self.transform:
+            timeseries = self.transform(timeseries)
+
+        units = self.units or region.units  # use user-defined units if any or else read from file
+
+        series = pd.Series(timeseries, index=time, name=f'{self.variable} ({units})')
         series.index.name = time_units
+
         return series
 
 
@@ -129,6 +131,13 @@ class Dataset:
             lon = map.coords[self.lon].values
             lat = map.coords[self.lat].values
 
+        if self.transform:
+            map = self.transform(map)
+
+        if self.units:
+            map.attrs['units'] = self.units  # enforce user-defined units if defined
+
+
         if (lon.size < 2) or (lat.size < 2):
             raise ValueError('region area is too small: point-wise map')
 
@@ -138,6 +147,7 @@ class Dataset:
         b = lat[0] - (lat[1]-lat[0])/2
         t = lat[-1] + (lat[-1]-lat[-2])/2
         map.attrs['extent'] = np.array((l, r, b, t)).tolist()
+
         return map
 
 
@@ -146,29 +156,26 @@ class CMIP5(Dataset):
     lon = 'lon'
     lat = 'lat'
 
-    def __init__(self, variable, model, scenario, period, ensemble=None):
-        self.variable = variable
-        self.model = model
-        self.scenario = scenario
-        self.period = period
-        self.ensemble = ensemble or 'r1i1p1'
+    def __init__(self, variable, model, experiment, period, ensemble=None, **kwargs):
+        if ensemble is None:
+            ensemble = 'r1i1p1'
 
-        self.dataset = 'projections-cmip5-monthly-single-levels'
+        dataset = 'projections-cmip5-monthly-single-levels'
+        folder = os.path.join('download', dataset)
+        name = f'{variable}-{model}-{experiment}-{period}-{ensemble}'
+        
+        downloaded_file = os.path.join(folder, name+'.zip')
 
-        self.folder = os.path.join('download', self.dataset)
-        self.name = '{variable}-{model}-{scenario}-{period}-{ensemble}'.format(**vars(self)) 
-        self.downloaded_file = os.path.join(self.folder, self.name+'.zip')
-
-    @property
-    def params(self):
-        return {
-                'ensemble_member': self.ensemble,
+        super().__init__(dataset, 
+            {
+                'variable': variable,
+                'model': model,
+                'experiment': experiment,
+                'period': period,
+                'ensemble_member': ensemble,
                 'format': 'zip',
-                'experiment': self.scenario,
-                'variable': self.variable,
-                'model': self.model,
-                'period': self.period,
-            }
+            }, downloaded_file, **kwargs)
+
 
     def get_ncfiles(self):
         # download zip file
@@ -205,31 +212,27 @@ class ERA5(Dataset):
     lon = 'longitude'
     lat = 'latitude'
 
+    def __init__(self, variable, year=None, area=None, **kwargs):
+        if area is None:
+            area = [90, -180, -90, 180]
+        if year is None:
+            year = list(range(2000, 2019+1))  # multiple year OK
+        dataset = 'reanalysis-era5-single-levels-monthly-means'
+        product_type = 'monthly_averaged_reanalysis'
+        folder = os.path.join('download', dataset, product_type)
+        year0, yearf = year[0], year[-1]
+        name = f'{variable}_{year0}-{yearf}_{area[0]}-{area[1]}-{area[2]}-{area[3]}'
+        downloaded_file = os.path.join(folder, name+'.nc')
 
-    def __init__(self, variable, year=None, area=None):
-        self.variable = variable
-        self.area = area or [90, -180, -90, 180]
-        self.year = year or list(range(2000, 2019+1))  # multiple year OK
-
-        self.month = list(range(1, 12+1))
-        self.dataset = 'reanalysis-era5-single-levels-monthly-means'
-        self.product_type = 'monthly_averaged_reanalysis'
-
-        self.folder = os.path.join('download', self.dataset, self.product_type)
-        self.name = '{variable}_{year0}-{yearf}_{area[0]}-{area[1]}-{area[2]}-{area[3]}'.format(year0=self.year[0], yearf=self.year[-1], **vars(self))
-        self.downloaded_file = os.path.join(self.folder, self.name+'.nc')
-
-    @property
-    def params(self):
-        return {
+        super().__init__(dataset, {
                 'format': 'netcdf',
-                'product_type': self.product_type,
-                'variable': self.variable,
-                'year': self.year,
-                'month': self.month,
+                'product_type': product_type,
+                'variable': variable,
+                'year': year,
+                'month': list(range(1, 12+1)),
                 'time': '00:00',
-                'area': self.area,
-            }
+                'area': area,
+            }, downloaded_file, **kwargs)
 
     def get_ncfiles(self):
         return [self.downloaded_file]
@@ -259,8 +262,8 @@ def make_area(lon, lat, w):
 def era5_tile_area(lon, lat, dx=10, dy=5):
     """define a "tile" to re-use some of the files
     """
-    if lon > 180: lon -= 360
-    lons = np.arange(-180, 180, dx)
+    # if lon > 180: lon -= 360
+    lons = np.arange(0, 360, dx)  # tiles in [0, 360 to match CMIP5]
     lats = np.arange(-90, 90, dy)
     j = np.searchsorted(lons, lon)
     i = np.searchsorted(lats, lat)
@@ -268,121 +271,22 @@ def era5_tile_area(lon, lat, dx=10, dy=5):
     return np.array(area).tolist() # convert numpy data type to json-compatible python objects
 
 
-class DatasetVariable:
-    """this class contains information to map raw CDS API variable from a given dataset onto the cross-dataset variable definition"""
-    def __init__(self, name, dataset, scale=1, offset=0, transform=None, note='', **kwargs):
-        self.name = name
-        self.dataset = dataset
+class Transform:
+    def __init__(self, scale=1, offset=0, transform=None):
         self.scale = scale
         self.offset = offset
         self.transform = transform
-        self.note = note
-        if kwargs:
-            logging.error(f'unknown field in {name}:{dataset} --> {kwargs}. Valid fields are: name, dataset, scale, offset, transform, note.')
 
-    @classmethod
-    def fromdef(cls, variable, definition):
-        """from definition file"""
-        if type(definition) is str:
-            definition = {'name': variable.name, 'dataset': definition}
-        assert isinstance(definition, dict), f'expected a dict, got {type(definition)} : {definition}'
-        
-        if 'name' not in definition:
-            definition['name'] = variable.name
-
-        if 'transform' in definition:
-            transform = definition.pop('transform')
-            logging.warning(f'{definition["name"]}: transform support is not yet implemented, use scale and offset if possible. Skipping transform.')
-
-        return cls(**definition)
-
-    def todef(self):
-        return vars(self)
-
-    def postprocess(self, data):
+    def __call__(self, data):
         data2 = (data + self.offset)*self.scale
         if self.transform:
             data2 = self.transform(data2)
         return data2
 
 
-class Variable:
-    def __init__(self, name, units, description='', datasets=None, **kwargs):
-        self.name = name
-        self.units = units
-        self.description = description
-        self.datasets = datasets or []
-
-        if kwargs:
-            logging.error(f'unknown field in for variable {name} : {kwargs}. Valid fields are: name, units, description, datasets.')
-
-    @classmethod
-    def fromdef(cls, definition):
-        """from definition file"""
-        dataset_definitions = definition.pop('datasets', [])
-
-        # legacy syntax with 'era5' and 'cmip5' fields
-        # --> insert these in the 'datasets' list of dataset variables
-        for field in ['era5', 'cmip5']:
-            if field in definition:
-                logging.warning('preferred definition is as a dataset list')
-                vdef = definition.pop(field)
-                vdef['dataset'] = field
-                dataset_definitions.append(vdef)
-
-
-        variable = cls(**definition)
-
-        for vdef in dataset_definitions:
-            dataset = DatasetVariable.fromdef(variable, vdef)
-            variable.datasets.append(dataset)
-
-        return variable
-
-    def todef(self):
-        defs = vars(self).copy()
-        defs['datasets'] = [dataset.todef() for dataset in defs.pop('datasets')]
-        return defs
-
-    def __repr__(self):
-        return yaml.dump(self.todef(), sort_keys=False, default_flow_style=False)
-
-
 locations = yaml.safe_load(open('locations.yml'))
-variables_def = yaml.safe_load(open('variables.yml'))
-custom_variables = [Variable.fromdef(element) for element in variables_def]
+variables_def = yaml.safe_load(open('indicators.yml'))
 assets = yaml.safe_load(open('assets.yml'))
-
-custom_variables_byname = {v.name:v for v in custom_variables}
-
-
-def define_variable_by_name(name):
-    """initialize Variable instance by name
-    """
-    if name not in custom_variables_byname:
-        logging.warning(f'{name} is not defined in variables.yml. Standard definition assumed.')
-        variable = Variable.fromdef({'name':name, 'units':'', 'datasets': ['era5', 'cmip5']})
-    else:
-        variable = custom_variables_byname[name]
-
-    return variable
-
-
-def define_dataset_variable(variable, dataset, **kwargs):
-    if dataset == 'era5':
-        year = kwargs.pop('year')
-        area = kwargs.pop('area')
-        return ERA5(variable.name, year, area)
-
-    elif dataset == 'cmip5':
-        model = kwargs.pop('model')
-        scenario = kwargs.pop('scenario')
-        period = kwargs.pop('period')
-        ensemble = kwargs.pop('ensemble', None)
-        return CMIP5(variable.name, model, scenario, period, ensemble=ensemble)
-
-    else:
-        raise ValueError(f'unknown dataset: {dataset}')
 
 
 def main():
@@ -391,7 +295,13 @@ def main():
     g = parser.add_argument_group('variables or asset')
     g.add_argument('--cmip5', nargs='*', default=[], help='list of CMIP5-monthly variables to download')
     g.add_argument('--era5', nargs='*', default=[], help='list of ERA5-monthly variables to download')
+    g.add_argument('--indicators', nargs='*', default=[], choices=[vdef['name'] for vdef in variables_def], help='list of custom indicators to download')
     g.add_argument('--asset', choices=list(assets.keys()), help='pre-defined list of variables, defined in assets.yml (experimental)')
+    g.add_argument('--dataset', choices=['era5', 'cmip5'], help='datasets for --variable and --asset')
+
+    g = parser.add_argument_group('filters (post-processing)')
+    g.add_argument('--bias-correction', action='store_true', help='align CMIP5 variables with matching ERA5')
+    g.add_argument('--reference-period', default='2006-2019', help='reference period for bias-correction (default: %(default)s)')
 
     g = parser.add_argument_group('location')
     g.add_argument('--location', choices=[loc['name'] for loc in locations], help='location name defined in locations.yml')
@@ -407,8 +317,8 @@ def main():
 
     g = parser.add_argument_group('CMIP5 control')
     g.add_argument('--model', default='ipsl_cm5a_mr')
-    g.add_argument('--scenario', choices=['rcp_2_6', 'rcp_4_5', 'rcp_6_0', 'rcp_8_5'], default='rcp_8_5')
-
+    g.add_argument('--experiment', choices=['rcp_2_6', 'rcp_4_5', 'rcp_6_0', 'rcp_8_5'], default='rcp_8_5')
+    g.add_argument('--period', default='200601-210012')
     # g = parser.add_argument_group('ERA5 control')
     # g.add_argument('--era5-start', default=2000, type=int, help='default: %(default)s')
     # g.add_argument('--era5-end', default=2019, type=int, help='default: %(default)s')
@@ -441,41 +351,67 @@ def main():
 
     print('lon', o.lon)
     print('lat', o.lat)
-    # print('area', area)
-
-    if not o.cmip5 and not o.era5 and not o.asset:
-        parser.error('please provide ERA5 or CMIP5 variables, for example: `--era5 2m_temperature` or `--cmip5 2m_temperature`, or a registered asset, e.g. `--asset energy`')
-
-    elif o.asset:
-        # more complex download_variables2 syntax re-used here
-        # the variables defined in asset are appended to --cmip5 and --era5 flags.
-        asset = assets[o.asset]  
-        cvars = {v.name: v for v in custom_variables}  # pre-defined variables
-        for vname in asset:
-            cvar = define_variable_by_name(vname)  # Variable class 
-            for dataset_variable in cvar.datasets:  
-                if dataset_variable.dataset == 'era5':
-                    o.era5.append(dataset_variable.name)
-                elif dataset_variable.dataset == 'cmip5':
-                    o.cmip5.append(dataset_variable.name)
-                else:
-                    logging.warning(f'dataset {dataset_variable.dataset} is not supported')
-
-    print('ERA5 variables', o.era5)
-    print('CMIP5 variables', o.cmip5)
-
 
     variables = []
+
+    if not o.cmip5 and not o.era5 and not o.asset and not o.indicators:
+        parser.error('please provide ERA5 or CMIP5 variables, for example: `--era5 2m_temperature` or `--cmip5 2m_temperature` or custom variable `--variable 2m_temperature` or asset, e.g. `--asset energy`')
+
+    ## simple --era5 or --cmip5 flags
+    variables = []
     for name in o.cmip5:
-        variables.append(CMIP5(name, o.model, o.scenario, '200601-210012'))
+        variables.append(CMIP5(name, o.model, o.experiment, o.period))
 
     for name in o.era5:
         variables.append(ERA5(name, area=area))
 
+    # assets only contain indicators
+    if o.asset:
+        for vname in assets[o.asset]:
+            if vname not in [v['name'] for v in variables_def]:
+                parser.error(f'unknown indicator in assets.yml: {vname}. See indicators.yml for indicator definition')
+            o.indicators.append(vname)
+
+    # add indicators
+    vdef_by_name = {v['name'] : v for v in variables_def}
+    for name in o.indicators:
+        vdef = vdef_by_name[name]
+        if not o.dataset or o.dataset == 'era5':
+            vdef2 = vdef.get('era5',{})
+            transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
+            era5 = ERA5(vdef2.get(name, name), area=area, transform=transform, units=vdef['units'], alias=name)
+            variables.append(era5)
+
+        if not o.dataset or o.dataset == 'cmip5':
+            vdef2 = vdef.get('cmip5',{})
+            transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
+            cmip5 = CMIP5(vdef2.get(name, name), o.model, o.experiment, o.period, transform=transform, units=vdef['units'], alias=name)
+            variables.append(cmip5)
+
+    print('variables to download:', variables)
+
+    # folder structure for CSV results
+    loc_folder = o.location.lower() if o.location else f'{o.lat}N-{o.lon}E' 
+    asset_folder = o.asset if o.asset else 'all'
+
     # download and convert to csv
     for v in variables:
-        # series = v.extract_timeseries(o.lon, o.lat)
-        series = v.save_csv(o.lon, o.lat)
+        if not os.path.exists(v.downloaded_file):
+            v.download()
+        series = v.extract_timeseries(o.lon, o.lat)
+
+        if isinstance(v, ERA5):
+            set_folder = 'era5'
+        elif isinstance(v, CMIP5):
+            set_folder = f'cmip5-{o.model}-{o.experiment}'
+        else:
+            raise ValueError(repr(v))
+
+        folder = os.path.join('indicators', loc_folder, asset_folder, set_folder)
+        os.makedirs(folder, exist_ok=True)
+        v.csv_file = os.path.join(folder, (v.alias or v.variable) + '.csv')
+        series.to_csv(v.csv_file)
+
 
     if (o.png_region or o.png_timeseries) and o.view_all:
         logging.warning('--view-all is not possible together with --png flags')
@@ -522,7 +458,7 @@ def main():
                         ax1.coastlines(resolution='10m')
 
                     if o.png_region:
-                        fig1.savefig(v.csvfile(o.lon, o.lat).replace('.csv', '-region.png'))
+                        fig1.savefig(v.csv_file.replace('.csv', '-region.png'))
                     if not o.view_region:
                         plt.close(fig1)
                 except:
@@ -531,7 +467,7 @@ def main():
 
 
             if o.view_timeseries or o.png_timeseries:
-                ts = v.load_csv(o.lon, o.lat)
+                ts = pd.read_csv(v.csv_file, index_col=0, comment='#')
                 # convert units for easier reading of graphs
                 ts.index = ts.index / 365.25 + 2000
                 ts.index.name = 'years since 2000-01-01'
@@ -539,7 +475,7 @@ def main():
                 ax2.set_title(v.dataset)
 
                 if o.png_timeseries:
-                    fig2.savefig(v.csvfile(o.lon, o.lat).replace('.csv', '.png'))
+                    fig2.savefig(v.csv_file.replace('.csv', '.png'))
                 if not o.view_timeseries:
                     plt.close(fig2)
 

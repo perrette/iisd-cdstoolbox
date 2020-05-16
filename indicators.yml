@@ -38,9 +38,6 @@
 - name: 10m_wind_speed
   units: m / s
   description: Wind speed magnitude at 10 m
-  datasets: 
-    - era5
-    - cmip5
 - name: surface_solar_radiation
   units: W / m^2
   description: Solar radiation at the surface (accounts for shadowing from clouds
