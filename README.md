@@ -33,78 +33,56 @@ Troubleshooting:
 
 ## cds api
 
-(work in progress)
+Download indicators associated with one asset class.
 
 **Examples of use**:
 
-Download temperature and wind speed for ERA5 (monthly, single level):
+    python download_indicators.py --asset energy --location Welkenraedt
+    
+The corresponding csv timeseries will be stored in `indicators/welkenraedt/energy`, while raw downloaded data from the CDS API (regional tiles in netcdf format) are stored under `download/`. The subfolder structure under `indicators/` is made according to this project needs, while the `download` folder closely reflects the CDS API data structure, so that the downloaded data can be re-used across multiple indicators. 
 
-    python download_variables.py --era5 2m_temperature 10m_wind_speed --lon 5.94 --lat 50.67
-    
-The corresponding csv timeseries will be stored in `csv/`, while raw downloaded data from the CDS API (regional tiles in netcdf format) are stored under `download/` (same subfolder). The subfolder for `--era5` variables is `reanalysis-era5-single-levels-monthly-means/monthly_averaged_reanalysis`. The time period for the ERA5 dataset is 2000-2019.
+The `indicators` folder is organized by location, asset class, simulation set and indicator name. The aim is to provide multiple sets for Savi simulation. For instance, `era5` for past simulations, and various `cmip5` versions for future simulations, that may vary with model and experiment. For instance the above command creates the folder structure (here a subset of all variables is shown):
 
-Use pre-defined location instead of `--lon` and `--lat`, and show a plot of downloaded time series for ERA5 and CMIP5:
+	indicators/
+		welkenraedt/
+			energy/
+				era5/
+					2m_temperature.csv
+					precipitation.csv
+				cmip5-ipsl_cm5a_mr-rcp_8_5/
+					2m_temperature.csv
+					precipitation.csv
 
-    python download_variables.py --location Welkenraedt --era5 2m_temperature --cmip5 2m_temperature --view-timeseries
+with two simulation sets `era5` and `cmip5-ipsl_cm5a_mr-rcp_8_5`. It is possible to specify other models and experiment via `--model` and `--experiment` parameters, to add futher simulation sets and thus test how the choice of climate models and experiment affect the result of Savi simulations.
 
-Same folder conventions as for the ERA5 timeseries, except that the CMIP5 (monthly, single level) subfolder is `projections-cmip5-monthly-single-levels`. The raw download data is a zip file that contains global netcdf file(s), then extracted to the same folder. Note that one such global netCDF file is 90M (unzipped). The time period for the CMIP5 dataset is 2006-2100.
-    
-Show a map + time series of the downloaded data:
-    
-    python download_variables.py --location Welkenraedt --era5 2m_temperature --cmip5 2m_temperature --view-all
-    
-Enlarge the view with 2000 km, for CMIP5 (but see known issues below):
-    
-    python download_variables.py --location Welkenraedt --cmip5 2m_temperature --view-all --width 2000
-    
-Full documentation:
+Compared to raw CDS API, some variables are renamed and scaled so that units match and are the same across simulation sets.
+For instance, temperature was adjusted from Kelvin to degree Celsius, and precipitation was renamed and units-adjusted into mm per month from original (mean_total_precipitation_rate (mm/s) in ERA5, and mean_precipitation_flux (m/s) in CMIP5). Additionally, cmip5 data can be corrected so that there mean over a period of overlap (2006-2019) matches the mean of era5 data. 
 
-    python download_variables.py --help
-    
+Additionally to the files shown in the example folder listing above, figures are also created for rapid control of the data, so that next to `2m_temperature.csv` we would also have `2m_temperature.png` (timeseries) and `2m_temperature-region.png` (region).
+
+To have all features above activated (figures and bias-correction), use the full command:
+
+	python download_indicators.py --asset energy --location Welkenraedt --png-timeseries --png-region --bias-correction
+
+Additional controls are provided in configuration files:
+- controls which indicators are available, how they are renamed and unit-adjusted: [indicators.yml](indicators.yml)
+- controls the indicator list in each asset class: [assets.yml](assets.yml)
+- controls the list of locations available: [locations.yml](locations.yml)
+
+Full documentation, including fine-grained controls, is provided in the command-line help:
+
+    python download_indicators.py --help
+   
+
 Visit the CDS Datasets download pages, for more information about available variables, models and scenarios:
 - ERA5: https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-single-levels-monthly-means?tab=form
 - CMIP5: `https://cds.climate.copernicus.eu/cdsapp#!/dataset/projections-cmip5-monthly-single-levels?tab=form`
 In particular, clicking on "Show API request" provides information about spelling of the parameters, e.g. that "2m temperature" is spelled `2m_temperature` and "RCP 8.5" is spelled `rcp_8_5`.
 
 
-**Implemented Features**:
-
-- Download any ERA5 and CMIP5 variable directly to `csv` file, for any lon/lat location
-- The raw CDS API files are downloaded under `download`, and timeseries are extracted as csv file under `csv`.
-- Favourite locations can be defined in [locations.yml](locations.yml) and called with `--location` parameter, to avoid having to indicate `--lon`, `--lat` each time.
-- ERA5 is downloaded for the 2000-2019 period, CMIP5 for 2006-2100. 
-- Default CMIP5 scenario is `rcp_8_5` (RCP 8.5) and default CMIP5 model is `ipsl_cm5a_mr`. 
-- Any other model or and any other future scenario can be specified via `--model` and `--scenario` parameters.
-- CMIP5 data are downloaded for the whole globe (in zipped format), about 70Mb per variable and per model for the 2006-2100 period
-- ERA5 data are downloaded in predefined "tiles" (rectangles) of 5 degrees latitude and 10 degrees longitude, for easier re-use in nearby locations (no need to download the full file again)
-- Visualize results via `--view-timeseries`, `--view-region` or `--view-area` parameters (experimental).
-- Possibility to specify a different region via `--width` (experimental, with issues)
-
-
-**Planned features**:
-
-Main features: 
-
-- Aggregate variables per asset class.
-- Bias-correction option by combining CMIP5 and ERA5 (monthly, single level)
-- Possibly add more datasets to match assets requirement (daily and hourly data for instance)
-
-In details:
-- Most additional planned features will involve post-processing of downloaded csv files, saved under an `assets` folder.
-- E.g. `--asset energy` parameter to download a predefined set of variables, and save these to CSV file(s) under `assets/energy.csv` or `assets/energy/<variable>.csv`, depending on the level of harmonization across variables.
-- more metadata to csv files (like units)
-- technical: harmonize downloaded netCDF files (e.g. dimensions are now named `lon` in CMIP5 and `longitude` in ERA5. Having one name will make simpler code and fix the longitude issue below)
-
-
-**Known issues**:
-
-- Problems for longitudes outside the [0, 180] range: will be solved in a future release.
-- Plotting areas for large regions that cross the longitude range above cause problems, for the reason outlined above.
-
-
 ## netcdf to csv
 
-Convert netcdf timeseries files downloaded from the CDS Toolbox pages into csv files:
+Convert netcdf timeseries files downloaded from the CDS Toolbox pages into csv files (note : this does not work for netcdf files downloaded via the cds api):
 
     python netcdf_to_csv.py data/*nc
 
