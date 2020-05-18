@@ -524,10 +524,7 @@ def main():
             for v in variables:
                 if figures_created and not (o.view_region or o.view_timeseries):
                     # reuse same figure (speed up)
-                    if o.view_region or o.png_region:
-                        ax1.clear()
-                    if o.view_timeseries or o.png_timeseries:
-                        ax2.clear()
+                    pass
                 else:
                     figures_created = True
                     if o.view_all:
@@ -549,6 +546,7 @@ def main():
                 # import view
                 if o.view_region or o.png_region:
                     try:
+                        ax1.clear()
                         map = v.extract_map(area=area)
                         h = ax1.imshow(map.values[::-1], extent=map.extent)
                         plt.colorbar(h, ax=ax1, label=f'{v.variable} ({map.units})')
@@ -567,7 +565,8 @@ def main():
 
 
                 if o.view_timeseries or o.png_timeseries:
-                    ts = v.load_timeseries(o.lon, o.lat)
+                    ax2.clear()
+                    ts = load_csv(v.csv_file)
                     # convert units for easier reading of graphs
                     ts.index = ts.index / 365.25 + 2000
                     ts.index.name = 'years since 2000-01-01'
@@ -578,6 +577,24 @@ def main():
 
                     if o.png_timeseries:
                         fig2.savefig(v.csv_file.replace('.csv', '.png'))
+
+            # all simulation sets on one figure
+            if o.view_timeseries or o.png_timeseries:
+                ax2.clear()
+                for v in variables:
+                    print(v, v.simulation_set)
+                    ts = load_csv(v.csv_file)
+                    # convert units for easier reading of graphs
+                    ts.index = ts.index / 365.25 + 2000
+                    ts.index.name = 'years since 2000-01-01'
+                    ts.plot(ax=ax2, label=v.simulation_set)
+                ax2.legend()
+                ax2.set_ylabel(v.units)
+                ax2.set_title(name)
+
+                if o.png_timeseries:
+                    figname = os.path.join(o.output, loc_folder, asset_folder, 'all_'+name+'.png')
+                    fig2.savefig(figname)
 
     if o.view_timeseries or o.view_region:
         plt.show()
