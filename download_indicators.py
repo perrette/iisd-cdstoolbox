@@ -311,6 +311,70 @@ def save_csv(series, fname):
     series.to_csv(fname)
 
 
+import itertools
+
+
+def monthly_climatology(dates, values, interval=None):
+    # select interval
+    date_val = zip(dates, values)
+
+    if interval:
+        y1, y2 = interval
+        date_val = [(date, val) for date, val in date_val if date.year >= y1 and date.year <= y2]
+
+    monthkey = lambda xy: xy[0].month
+    monthly_clim = [np.mean([val for date,val in g]) for month, g in itertools.groupby(sorted(date_val, key=monthkey), key=monthkey)]
+    assert len(monthly_clim) == 12
+    return np.array(monthly_clim)
+
+
+def yearly_climatology(dates, values, interval=None):
+    # select interval
+    date_val = zip(dates, values)
+
+    if interval:
+        y1, y2 = interval
+        date_val = [(date, val) for date, val in date_val if date.year >= y1 and date.year <= y2]
+
+    return np.mean([val for date, val in date_val])
+
+
+def correct_monthly_bias(series, era5, interval):
+    """ correct for each month
+    """
+    dates = nc.num2date(series.index, time_units)
+    era5_dates = nc.num2date(era5.index, time_units)
+
+    era5_clim = monthly_climatology(era5_dates, era5.values, interval)
+    cmip5_clim = monthly_climatology(dates, series.values, interval)
+    delta = era5_clim - cmip5_clim
+
+    print('yearly offset from (monthly) bias correction:', np.mean(delta))
+
+    # apply monthly anomaly
+    unbiased = series.values.copy()
+    for i, date in enumerate(dates):
+        unbiased[i] += delta[date.month - 1]
+
+    return pd.Series(unbiased, index=series.index, name=series.name)
+
+
+def correct_yearly_bias(series, era5, interval):
+    """ correct for each month
+    """
+    dates = nc.num2date(series.index, time_units)
+    era5_dates = nc.num2date(era5.index, time_units)
+
+    era5_clim = yearly_climatology(era5_dates, era5.values, interval)
+    cmip5_clim = yearly_climatology(dates, series.values, interval)
+    delta = era5_clim - cmip5_clim
+
+    print('yearly offset from bias correction:', delta)
+
+    # apply yearly anomaly
+    return pd.Series(series.values + delta, index=series.index, name=series.name)
+
+
 def main():
     import argparse
     from cmip5 import get_models_per_asset, get_models_per_indicator, get_all_models
@@ -330,6 +394,7 @@ def main():
     g = parser.add_argument_group('filters (post-processing)')
     g.add_argument('--bias-correction', action='store_true', help='align CMIP5 variables with matching ERA5')
     g.add_argument('--reference-period', default=[2006, 2019], nargs=2, type=int, help='reference period for bias-correction (default: %(default)s)')
+    g.add_argument('--yearly-bias', action='store_true', help='yearly instead of monthly bias correction')
 
     g = parser.add_argument_group('location')
     g.add_argument('--location', choices=[loc['name'] for loc in locations], help='location name defined in locations.yml')
@@ -444,22 +509,14 @@ def main():
 
         # download and convert to csv
         for v in variables:
-            # if not os.path.exists(v.downloaded_file):
-                # v.download()
             series = v.load_timeseries(o.lon, o.lat)
 
-            # additional transform for bias correction
             if o.bias_correction and isinstance(v, CMIP5):
-                # ERA5 was already loaded
                 era5 = v.reference.load_timeseries(o.lon, o.lat)
-                y1, y2 = o.reference_period
-                t1 = nc.date2num(datetime.datetime(y1, 1,1), time_units)
-                t2 = nc.date2num(datetime.datetime(y2, 12,12), time_units)
-                climatology = era5.loc[t1:t2].mean()
-                ref = series.loc[t1:t2].mean()
-                delta = climatology - ref
-                print(f'apply bias correction to {v.dataset}, {v.variable}: {delta}')
-                series = series + delta
+                if o.yearly_bias:
+                    series = correct_yearly_bias(series, era5, o.reference_period)
+                else:
+                    series = correct_monthly_bias(series, era5, o.reference_period)
 
 
             if isinstance(v, ERA5):
