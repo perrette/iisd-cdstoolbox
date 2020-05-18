@@ -390,6 +390,7 @@ def main():
     g.add_argument('--asset', choices=list(assets.keys()), help='pre-defined list of variables, defined in assets.yml (experimental)')
 
     parser.add_argument('--dataset', choices=['era5', 'cmip5'], help='dataset in combination with for `--indicators` and `--asset`')
+    parser.add_argument('-o', '--output', default='indicators', help='output directory, default: %(default)s')
 
     g = parser.add_argument_group('filters (post-processing)')
     g.add_argument('--bias-correction', action='store_true', help='align CMIP5 variables with matching ERA5')
@@ -409,10 +410,8 @@ def main():
     g.add_argument('-t','--top', type=float)
 
     g = parser.add_argument_group('CMIP5 control')
-    g.add_argument('--model', choices=get_all_models())
-    default_model = 'ipsl_cm5a_mr'
-    g.add_argument('--default-model', action='store_true', help=f'same as --model {default_model}')
-    g.add_argument('--experiment', choices=['rcp_2_6', 'rcp_4_5', 'rcp_6_0', 'rcp_8_5'], default='rcp_8_5')
+    g.add_argument('--model', nargs='*', default=['ipsl_cm5a_mr'], choices=get_all_models())
+    g.add_argument('--experiment', nargs='*', choices=['rcp_2_6', 'rcp_4_5', 'rcp_6_0', 'rcp_8_5'], default=['rcp_8_5'])
     g.add_argument('--period', default='200601-210012')
 
     g = parser.add_argument_group('visualization')
@@ -440,12 +439,6 @@ def main():
             area = o.top or t, o.left or l, o.bottom or b, o.right or r
     else:
         area = era5_tile_area(o.lon, o.lat)
-
-
-    if o.default_model:
-        if o.model:
-            parser.error('cannot have both --default-model and --model')
-        o.model = default_model
 
     print('lon', o.lon)
     print('lat', o.lat)
@@ -479,6 +472,7 @@ def main():
         transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
         era5 = ERA5(vdef2.get('name', name), area=area, transform=transform, units=vdef['units'], alias=name)
         era5.simulation_set = 'ERA5'
+        era5.set_folder = 'era5'
 
         if not o.dataset or o.dataset == 'era5' or o.bias_correction:
             variables.append(era5)
@@ -487,20 +481,13 @@ def main():
         transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
 
         if not o.dataset or o.dataset == 'cmip5':
-            if o.model:
-                models = [o.model]
-            else:
-                if o.asset:
-                    models = get_models_per_asset(o.asset, experiment=o.experiment)
-                else:
-                    models = get_models_per_indicator(name, experiment=o.experiment)
-
-            for model in models:
-                experiment = o.experiment
-                cmip5 = CMIP5(vdef2.get('name', name), model, experiment, o.period, transform=transform, units=vdef['units'], alias=name)
-                cmip5.reference = era5
-                cmip5.simulation_set = f'CMIP5 - {model} - {experiment}'
-                variables.append(cmip5)
+            for model in o.model:
+                for experiment in o.experiment:
+                    cmip5 = CMIP5(vdef2.get('name', name), model, experiment, o.period, transform=transform, units=vdef['units'], alias=name)
+                    cmip5.reference = era5
+                    cmip5.simulation_set = f'CMIP5 - {model} - {experiment}'
+                    cmip5.set_folder = f'cmip5-{model}-{experiment}'
+                    variables.append(cmip5)
 
         # download and convert to csv
         for v in variables:
@@ -513,15 +500,7 @@ def main():
                 else:
                     series = correct_monthly_bias(series, era5, o.reference_period)
 
-
-            if isinstance(v, ERA5):
-                set_folder = 'era5'
-            elif isinstance(v, CMIP5):
-                set_folder = f'cmip5-{o.model}-{o.experiment}'
-            else:
-                raise ValueError(repr(v))
-
-            folder = os.path.join('indicators', loc_folder, asset_folder, set_folder)
+            folder = os.path.join(o.output, loc_folder, asset_folder, v.set_folder)
             os.makedirs(folder, exist_ok=True)
             v.csv_file = os.path.join(folder, (v.alias or v.variable) + '.csv')
             save_csv(series, v.csv_file)
