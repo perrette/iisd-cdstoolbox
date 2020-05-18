@@ -28,11 +28,11 @@ wastewater:
 buildings:
 - 2m_temperature
 - precipitation
-- solar_radiation
+- surface_solar_radiation
 
 roads:
 - 2m_temperature
 - precipitation
 - evaporation
 - runoff
-- solar_radiation
+- surface_solar_radiation
