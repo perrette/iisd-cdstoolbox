@@ -1,7 +1,7 @@
 import yaml
 import json
 import os
-from download_indicators import CMIP5
+from download import CMIP5
 
 indicators = yaml.safe_load(open('indicators.yml'))
 assets = yaml.safe_load(open('assets.yml'))
