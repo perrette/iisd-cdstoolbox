@@ -82,7 +82,8 @@ class Dataset:
         with nc.Dataset(files[0]) as ds:
             return self.get_varname(ds)
 
-    def _extract_timeseries(self, f, lon, lat):
+
+    def _extract_timeseries(self, f, lon, lat, transform=True):
         if not os.path.exists(self.downloaded_file):
             self.download()
         with nc.Dataset(f) as ds:
@@ -100,15 +101,45 @@ class Dataset:
             interpolator = RegularGridInterpolator((londim, latdim), region.values.T)
         timeseries = interpolator(np.array((lon, lat)), method='linear').squeeze()
 
-        if self.transform:
-            timeseries = self.transform(timeseries)
-
-        units = self.units or region.units  # use user-defined units if any or else read from file
-
+        units = region.units # file
         series = pd.Series(timeseries, index=time, name=f'{self.variable} ({units})')
-        series.index.units = time_units
+        series.index.name = time_units
+
+        if transform:
+            series = self._transform_units(series)
 
         return series
+
+
+    def extract_timeseries(self, lon, lat, transform=True):
+        files = self.get_ncfiles()
+        return pd.concat([self._extract_timeseries(f, lon, lat, transform) for f in files])
+
+
+    def _transform_units(self, series):
+        if self.transform:
+            series = self.transform(series)
+            series.name = f'{self.variable} ({self.units})'
+
+        return series
+
+
+    def timeseries_file(self, lon, lat):
+        base, ext = os.path.splitext(self.downloaded_file)
+        return base + f'_{lat}N_{lon}E.csv'
+
+
+    def load_timeseries(self, lon, lat, overwrite=False):
+        '''extract timeseries but buffer file...'''
+        fname = self.timeseries_file(lon, lat)
+        if not os.path.exists(fname) or overwrite:
+            timeseries = self.extract_timeseries(lon, lat, transform=False)
+            save_csv(timeseries, fname)
+
+        timeseries = load_csv(fname)
+        timeseries = self._transform_units(timeseries)
+
+        return timeseries
 
 
     def _extract_map(self, dataarray, time, area=None):
@@ -153,6 +184,15 @@ class Dataset:
         return map
 
 
+    def extract_map(self, time=None, area=None):
+        files = self.get_ncfiles()
+        with nc.Dataset(files[0]) as ds:
+            variable = self.get_varname(ds)
+        dataarray = xr.open_mfdataset(files, combine='by_coords')[variable]
+        return self._extract_map(dataarray, time, area)
+
+
+
 class CMIP5(Dataset):
 
     lon = 'lon'
@@ -195,20 +235,6 @@ class CMIP5(Dataset):
         return [os.path.join(self.folder, name) for name in listOfiles]
 
 
-    def extract_timeseries(self, lon, lat):
-        files = self.get_ncfiles()
-        # alltimes, allvalues = zip(*[self._extract_timeseries(f, lon, lat) for f in files])
-        return pd.concat([self._extract_timeseries(f, lon, lat) for f in files])
-
-
-    def extract_map(self, time=None, area=None):
-        files = self.get_ncfiles()
-        with nc.Dataset(files[0]) as ds:
-            variable = self.get_varname(ds)
-        dataarray = xr.open_mfdataset(files, combine='by_coords')[variable]
-        return self._extract_map(dataarray, time, area)
-
-
 class ERA5(Dataset):
 
     lon = 'longitude'
@@ -238,17 +264,6 @@ class ERA5(Dataset):
 
     def get_ncfiles(self):
         return [self.downloaded_file]
-
-    def extract_timeseries(self, lon, lat):
-        return self._extract_timeseries(self.downloaded_file, lon, lat)
-
-
-    def extract_map(self, time=None, area=None):
-        files = self.get_ncfiles()
-        with nc.Dataset(files[0]) as ds:
-            variable = self.get_varname(ds)
-        dataarray = xr.open_dataset(files[0])[variable]
-        return self._extract_map(dataarray, time, area)
 
 
 
@@ -403,9 +418,9 @@ def main():
 
     # download and convert to csv
     for v in variables:
-        if not os.path.exists(v.downloaded_file):
-            v.download()
-        series = v.extract_timeseries(o.lon, o.lat)
+        # if not os.path.exists(v.downloaded_file):
+            # v.download()
+        series = v.load_timeseries(o.lon, o.lat)
 
         # additional transform for bias correction
         if o.bias_correction and isinstance(v, CMIP5):
