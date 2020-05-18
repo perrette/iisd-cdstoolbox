@@ -188,7 +188,10 @@ class Dataset:
         files = self.get_ncfiles()
         with nc.Dataset(files[0]) as ds:
             variable = self.get_varname(ds)
-        dataarray = xr.open_mfdataset(files, combine='by_coords')[variable]
+        if len(files) == 1:
+            dataarray = xr.open_dataset(files[0])[variable]
+        else:
+            dataarray = xr.open_mfdataset(files, combine='by_coords')[variable]
         return self._extract_map(dataarray, time, area)
 
 
