@@ -15,6 +15,8 @@ import cdsapi
 
 from netcdf_to_csv import convert_time
 
+time_units = 'days since 2000-01-01'
+
 
 class Dataset:
     
@@ -299,13 +301,6 @@ class Transform:
         return data2
 
 
-locations = yaml.safe_load(open('locations.yml'))
-variables_def = yaml.safe_load(open('indicators.yml'))
-assets = yaml.safe_load(open('assets.yml'))
-
-
-time_units = 'days since 2000-01-01'
-
 def load_csv(fname):
     return pd.read_csv(fname, index_col=0, comment='#').squeeze()
 
@@ -315,6 +310,12 @@ def save_csv(series, fname):
 
 def main():
     import argparse
+    from cmip5 import get_models_per_asset, get_models_per_indicator, get_all_models
+
+    locations = yaml.safe_load(open('locations.yml'))
+    variables_def = yaml.safe_load(open('indicators.yml'))
+    assets = yaml.safe_load(open('assets.yml'))
+
     parser = argparse.ArgumentParser()
     g = parser.add_argument_group('variables or asset')
     # g.add_argument('--cmip5', nargs='*', default=[], help='list of CMIP5-monthly variables to download')
@@ -340,7 +341,9 @@ def main():
     g.add_argument('-t','--top', type=float)
 
     g = parser.add_argument_group('CMIP5 control')
-    g.add_argument('--model', default='ipsl_cm5a_mr')
+    g.add_argument('--model', choices=get_all_models())
+    default_model = 'ipsl_cm5a_mr'
+    g.add_argument('--default-model', action='store_true', help=f'same as --model {default_model}')
     g.add_argument('--experiment', choices=['rcp_2_6', 'rcp_4_5', 'rcp_6_0', 'rcp_8_5'], default='rcp_8_5')
     g.add_argument('--period', default='200601-210012')
 
@@ -404,11 +407,22 @@ def main():
 
         vdef2 = vdef.get('cmip5',{})
         transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
-        cmip5 = CMIP5(vdef2.get('name', name), o.model, o.experiment, o.period, transform=transform, units=vdef['units'], alias=name)
-        cmip5.reference = era5
 
         if not o.dataset or o.dataset == 'cmip5':
-            variables.append(cmip5)
+            if o.model:
+                models = [o.model]
+            elif o.default_model:
+                models = [default_model]
+            else:
+                if o.asset:
+                    models = get_models_per_asset(o.asset, experiment=o.experiment)
+                else:
+                    models = get_models_per_indicator(name, experiment=o.experiment)
+
+            for model in models:
+                cmip5 = CMIP5(vdef2.get('name', name), o.model, o.experiment, o.period, transform=transform, units=vdef['units'], alias=name)
+                cmip5.reference = era5
+                variables.append(cmip5)
 
     # folder structure for CSV results
     loc_folder = o.location.lower() if o.location else f'{o.lat}N-{o.lon}E' 

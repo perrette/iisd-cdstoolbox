@@ -67,6 +67,10 @@ def make_cmip5_listing(all_cmip5=False, experiment='rcp_8_5', asset=None, variab
     json.dump({'listing':listing}, open(listing_file,'w'))
 
 
+def get_all_models():
+    return cmip5['models']
+    
+
 def get_models_per_variable(cmip5_name, experiment=None):
     return sorted([model for variable, model, experiment_ in listing if variable == cmip5_name and (experiment is None or experiment == experiment_)])
 
@@ -75,7 +79,8 @@ def get_models_per_indicator(name, experiment=None):
     cmip5_name = vdef.get('cmip5', {}).get('name', name)
     return get_models_per_variable(cmip5_name, experiment)
 
-def get_models_per_asset(asset='energy', experiment=None, verbose=True):
+
+def get_models_per_asset(asset, experiment=None, verbose=True):
     all_models  = [set(get_models_per_indicator(name, experiment)) for name in assets[asset]]
 
     models = sorted(set.intersection(*all_models))
