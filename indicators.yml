@@ -15,8 +15,8 @@
     note: mm/s to mm / month
   cmip5:
     name: mean_precipitation_flux
-    scale: 2592000000
-    note: m/s to mm / month
+    scale: 2592000
+    note: mm/s to mm / month
 - name: runoff
   units: mm per month
   description: Runoff
@@ -25,7 +25,7 @@
     scale: 2592000
   cmip5:
     name: runoff
-    scale: 2592000000
+    scale: 2592000
 - name: evaporation
   units: mm per month
   description: Evaporation
@@ -34,7 +34,7 @@
     scale: 2592000
   cmip5:
     name: evaporation
-    scale: 2592000000
+    scale: 2592000
 - name: 10m_wind_speed
   units: m / s
   description: Wind speed magnitude at 10 m

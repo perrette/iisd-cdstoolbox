@@ -56,7 +56,7 @@ The `indicators` folder is organized by location, asset class, simulation set an
 with two simulation sets `era5` and `cmip5-ipsl_cm5a_mr-rcp_8_5`. It is possible to specify other models and experiment via `--model` and `--experiment` parameters, to add futher simulation sets and thus test how the choice of climate models and experiment affect the result of Savi simulations.
 
 Compared to raw CDS API, some variables are renamed and scaled so that units match and are the same across simulation sets.
-For instance, temperature was adjusted from Kelvin to degree Celsius, and precipitation was renamed and units-adjusted into mm per month from original (mean_total_precipitation_rate (mm/s) in ERA5, and mean_precipitation_flux (m/s) in CMIP5). Additionally, cmip5 data can be corrected so that there mean over a period of overlap (2006-2019) matches the mean of era5 data. 
+For instance, temperature was adjusted from Kelvin to degree Celsius, and precipitation was renamed and units-adjusted into mm per month from original (mean_total_precipitation_rate (mm/s) in ERA5, and mean_precipitation_flux (mm/s) in CMIP5). Additionally, cmip5 data can be corrected so that there mean over a period of overlap (2006-2019) matches the mean of era5 data. 
 
 Additionally to the files shown in the example folder listing above, figures are also created for rapid control of the data, so that next to `2m_temperature.csv` we would also have `2m_temperature.png` (timeseries) and `2m_temperature-region.png` (region).
 
