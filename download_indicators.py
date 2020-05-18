@@ -384,14 +384,14 @@ def main():
 
         vdef2 = vdef.get('era5',{})
         transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
-        era5 = ERA5(vdef2.get(name, name), area=area, transform=transform, units=vdef['units'], alias=name)
+        era5 = ERA5(vdef2.get('name', name), area=area, transform=transform, units=vdef['units'], alias=name)
 
         if not o.dataset or o.dataset == 'era5' or o.bias_correction:
             variables.append(era5)
 
         vdef2 = vdef.get('cmip5',{})
         transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
-        cmip5 = CMIP5(vdef2.get(name, name), o.model, o.experiment, o.period, transform=transform, units=vdef['units'], alias=name)
+        cmip5 = CMIP5(vdef2.get('name', name), o.model, o.experiment, o.period, transform=transform, units=vdef['units'], alias=name)
         cmip5.reference = era5
 
         if not o.dataset or o.dataset == 'cmip5':
