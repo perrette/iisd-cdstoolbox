@@ -26,8 +26,9 @@ for experiment in ['rcp_8_5']:
                     request.download()
                 listing.append((variable, model, experiment))
             except:
-                print('skip model', model)
-                break
+                continue
+                #print('skip model', model)
+                #break
 
 print('valid models for all asset', models)
 
