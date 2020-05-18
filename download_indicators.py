@@ -377,19 +377,21 @@ def correct_yearly_bias(series, era5, interval):
 
 def main():
     import argparse
-    from cmip5 import get_models_per_asset, get_models_per_indicator, get_all_models
+    from cmip5 import get_models_per_asset, get_models_per_indicator, get_all_models, cmip5 as cmip5_def
 
     locations = yaml.safe_load(open('locations.yml'))
     variables_def = yaml.safe_load(open('indicators.yml'))
     assets = yaml.safe_load(open('assets.yml'))
 
     parser = argparse.ArgumentParser()
-    g = parser.add_argument_group('variables or asset')
-    # g.add_argument('--cmip5', nargs='*', default=[], help='list of CMIP5-monthly variables to download')
-    # g.add_argument('--era5', nargs='*', default=[], help='list of ERA5-monthly variables to download')
+    # g = parser.add_argument_group('variables or asset')
+    g = parser.add_mutually_exclusive_group(required=True)
+    # g.add_argument('--era5', nargs='*', help='list of ERA5-monthly variables to download (original name, no correction)')
+    # g.add_argument('--cmip5', nargs='*', help='list of CMIP5-monthly variables to download')
     g.add_argument('--indicators', nargs='*', default=[], choices=[vdef['name'] for vdef in variables_def], help='list of custom indicators to download')
     g.add_argument('--asset', choices=list(assets.keys()), help='pre-defined list of variables, defined in assets.yml (experimental)')
-    g.add_argument('--dataset', choices=['era5', 'cmip5'], help='datasets for --variable and --asset')
+
+    parser.add_argument('--dataset', choices=['era5', 'cmip5'], help='dataset in combination with for `--indicators` and `--asset`')
 
     g = parser.add_argument_group('filters (post-processing)')
     g.add_argument('--bias-correction', action='store_true', help='align CMIP5 variables with matching ERA5')
@@ -414,10 +416,6 @@ def main():
     g.add_argument('--default-model', action='store_true', help=f'same as --model {default_model}')
     g.add_argument('--experiment', choices=['rcp_2_6', 'rcp_4_5', 'rcp_6_0', 'rcp_8_5'], default='rcp_8_5')
     g.add_argument('--period', default='200601-210012')
-
-    # g = parser.add_argument_group('ERA5 control')
-    # g.add_argument('--era5-start', default=2000, type=int, help='default: %(default)s')
-    # g.add_argument('--era5-end', default=2019, type=int, help='default: %(default)s')
 
     g = parser.add_argument_group('visualization')
     g.add_argument('--view-region', action='store_true')
@@ -471,12 +469,11 @@ def main():
 
     figures_created = False
 
-
     # loop over indicators
     vdef_by_name = {v['name'] : v for v in variables_def}
     for name in o.indicators:
 
-        variables = []  # grouped variables
+        variables = []  # each variable for the simulation set
 
         vdef = vdef_by_name[name]
 
