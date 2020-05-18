@@ -37,7 +37,7 @@ Download indicators associated with one asset class.
 
 **Examples of use**:
 
-    python download_indicators.py --asset energy --location Welkenraedt
+    python download_indicators.py --asset energy --location welkenraedt
     
 The corresponding csv timeseries will be stored in `indicators/welkenraedt/energy`, while raw downloaded data from the CDS API (regional tiles in netcdf format) are stored under `download/`. The subfolder structure under `indicators/` is made according to this project needs, while the `download` folder closely reflects the CDS API data structure, so that the downloaded data can be re-used across multiple indicators. 
 
@@ -62,7 +62,7 @@ Additionally to the files shown in the example folder listing above, figures are
 
 To have all features above activated (figures and bias-correction), use the full command:
 
-	python download_indicators.py --asset energy --location Welkenraedt --png-timeseries --png-region --bias-correction
+	python download_indicators.py --asset energy --location welkenraedt --png-timeseries --png-region --bias-correction
 
 Additional controls are provided in configuration files:
 - controls which indicators are available, how they are renamed and unit-adjusted: [indicators.yml](indicators.yml)
