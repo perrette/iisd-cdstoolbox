@@ -123,11 +123,9 @@ class Dataset:
 
         return series
 
-
     def timeseries_file(self, lon, lat):
         base, ext = os.path.splitext(self.downloaded_file)
         return base + f'_{lat}N_{lon}E.csv'
-
 
     def load_timeseries(self, lon, lat, overwrite=False):
         '''extract timeseries but buffer file...'''
@@ -477,7 +475,7 @@ def main():
                     fig1 = plt.figure()
                     ax1 = plt.subplot(1, 1, 1, **kwargs)
 
-                if o.view_timeseries or o.png_region:
+                if o.view_timeseries or o.png_timeseries:
                     fig2 = plt.figure()
                     ax2 = plt.subplot(1, 1, 1)
 
@@ -503,11 +501,12 @@ def main():
 
 
             if o.view_timeseries or o.png_timeseries:
-                ts = pd.read_csv(v.csv_file, index_col=0, comment='#')
+                ts = v.load_timeseries(o.lon, o.lat)
                 # convert units for easier reading of graphs
                 ts.index = ts.index / 365.25 + 2000
                 ts.index.name = 'years since 2000-01-01'
                 ts.plot(ax=ax2)
+                ax2.set_ylabel(v.units)
                 ax2.set_title(v.dataset)
 
                 if o.png_timeseries:
