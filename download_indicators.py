@@ -329,7 +329,7 @@ def main():
     g.add_argument('--reference-period', default=[2006, 2019], nargs=2, type=int, help='reference period for bias-correction (default: %(default)s)')
 
     g = parser.add_argument_group('location')
-    g.add_argument('--location', choices=[loc['name'].lower() for loc in locations], help='location name defined in locations.yml')
+    g.add_argument('--location', choices=[loc['name'] for loc in locations], help='location name defined in locations.yml')
     g.add_argument('--lon', type=float)
     g.add_argument('--lat', type=float)
 

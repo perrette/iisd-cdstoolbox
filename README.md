@@ -37,7 +37,7 @@ Download indicators associated with one asset class.
 
 **Examples of use**:
 
-    python download_indicators.py --asset energy --location welkenraedt --default-model
+    python download_indicators.py --asset energy --location Welkenraedt --default-model
     
 The corresponding csv timeseries will be stored in `indicators/welkenraedt/energy`, while raw downloaded data from the CDS API (regional tiles in netcdf format) are stored under `download/`. The subfolder structure under `indicators/` is made according to this project needs, while the `download` folder closely reflects the CDS API data structure, so that the downloaded data can be re-used across multiple indicators. 
 
