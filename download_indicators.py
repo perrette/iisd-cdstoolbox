@@ -309,7 +309,7 @@ assets = yaml.safe_load(open('assets.yml'))
 time_units = 'days since 2000-01-01'
 
 def load_csv(fname):
-    return pd.read_csv(fname, index_col=0, comment='#')
+    return pd.read_csv(fname, index_col=0, comment='#').squeeze()
 
 def save_csv(series, fname):
     series.to_csv(fname)
@@ -424,17 +424,15 @@ def main():
 
         # additional transform for bias correction
         if o.bias_correction and isinstance(v, CMIP5):
-            logging.info(f'apply bias correction to {v.dataset}: {v.variable}')
-            print(f'apply bias correction to {v.dataset}: {v.variable}')
             # ERA5 was already loaded
-            era5 = load_csv(v.reference.csv_file)
+            era5 = v.reference.load_timeseries(o.lon, o.lat)
             y1, y2 = o.reference_period
             t1 = nc.date2num(datetime.datetime(y1, 1,1), time_units)
             t2 = nc.date2num(datetime.datetime(y2, 12,12), time_units)
-            climatology = era5.loc[t1:t2].mean().values
-            ref = series.loc[t1:t2].mean().values
+            climatology = era5.loc[t1:t2].mean()
+            ref = series.loc[t1:t2].mean()
             delta = climatology - ref
-            print('bias corrected:', delta)
+            print(f'apply bias correction to {v.dataset}, {v.variable}: {delta}')
             series = series + delta
 
 
