@@ -430,12 +430,12 @@ def main():
             era5 = load_csv(v.reference.csv_file)
             y1, y2 = o.reference_period
             t1 = nc.date2num(datetime.datetime(y1, 1,1), time_units)
-            t2 = nc.date2num(datetime.datetime(y1, 12,12), time_units)
-            climatology = era5.loc[t1:t2].mean()
-            ref = series.loc[t1:t2].mean()
+            t2 = nc.date2num(datetime.datetime(y2, 12,12), time_units)
+            climatology = era5.loc[t1:t2].mean().values
+            ref = series.loc[t1:t2].mean().values
             delta = climatology - ref
             print('bias corrected:', delta)
-            series = series + delta.values
+            series = series + delta
 
 
         if isinstance(v, ERA5):
