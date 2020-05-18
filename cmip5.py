@@ -67,16 +67,16 @@ def make_cmip5_listing(all_cmip5=False, experiment='rcp_8_5', asset=None, variab
     json.dump({'listing':listing}, open(listing_file,'w'))
 
 
-def get_models_per_variable(cmip5_name):
-    return sorted([model for variable, model, experiment in listing if variable == cmip5_name])
+def get_models_per_variable(cmip5_name, experiment=None):
+    return sorted([model for variable, model, experiment_ in listing if variable == cmip5_name and (experiment is None or experiment == experiment_)])
 
-def get_models_per_indicator(name):
+def get_models_per_indicator(name, experiment=None):
     vdef = {vdef['name']:vdef for vdef in indicators}[name]
     cmip5_name = vdef.get('cmip5', {}).get('name', name)
-    return get_models_per_variable(cmip5_name)
+    return get_models_per_variable(cmip5_name, experiment)
 
-def get_models_per_asset(asset='energy', verbose=True):
-    all_models  = [set(get_models_per_indicator(name)) for name in assets[asset]]
+def get_models_per_asset(asset='energy', experiment=None, verbose=True):
+    all_models  = [set(get_models_per_indicator(name, experiment)) for name in assets[asset]]
 
     models = sorted(set.intersection(*all_models))
 
@@ -96,15 +96,15 @@ if __name__ == '__main__':
     g.add_argument('--variable')
     parser.add_argument('--update-listing', action='store_true')
     parser.add_argument('--verbose', action='store_true')
-    parser.add_argument('--experiment', default='rcp_8_5', help=argparse.SUPPRESS)
+    parser.add_argument('--experiment', default='rcp_8_5')
     o = parser.parse_args()
 
     if o.update_listing:
         make_cmip5_listing(all_cmip5=False, experiment=o.experiment, asset=o.asset, variable=o.variable, indicator=o.indicator, lazy=True)
 
     if o.asset:
-        print(' '.join(get_models_per_asset(o.asset, verbose=o.verbose)))
+        print(' '.join(get_models_per_asset(o.asset, o.experiment, verbose=o.verbose)))
     elif o.indicator:
-        print(' '.join(get_models_per_indicator(o.indicator)))
+        print(' '.join(get_models_per_indicator(o.indicator, o.experiment)))
     elif o.variable:
-        print(' '.join(get_models_per_variable(o.variable)))
+        print(' '.join(get_models_per_variable(o.variable, o.experiment)))
