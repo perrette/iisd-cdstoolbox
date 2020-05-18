@@ -3,6 +3,7 @@
 import os
 import zipfile
 import logging
+import itertools
 import numpy as np
 import netCDF4 as nc
 from scipy.interpolate import RegularGridInterpolator
@@ -309,9 +310,6 @@ def load_csv(fname):
 
 def save_csv(series, fname):
     series.to_csv(fname)
-
-
-import itertools
 
 
 def monthly_climatology(dates, values, interval=None):
