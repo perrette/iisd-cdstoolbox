@@ -31,7 +31,7 @@
   description: Evaporation
   era5:
     name: mean_evaporation_rate
-    scale: 2592000
+    scale: -2592000
   cmip5:
     name: evaporation
     scale: 2592000
