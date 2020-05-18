@@ -582,7 +582,6 @@ def main():
             if o.view_timeseries or o.png_timeseries:
                 ax2.clear()
                 for v in variables:
-                    print(v, v.simulation_set)
                     ts = load_csv(v.csv_file)
                     # convert units for easier reading of graphs
                     ts.index = ts.index / 365.25 + 2000
