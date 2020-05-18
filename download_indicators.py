@@ -381,13 +381,17 @@ def main():
         area = era5_tile_area(o.lon, o.lat)
 
 
+    if o.default_model:
+        if o.model:
+            parser.error('cannot have both --default-model and --model')
+        o.model = default_model
+
     print('lon', o.lon)
     print('lat', o.lat)
 
     if not o.asset and not o.indicators:
         parser.error('please provide indicators, for example: `--indicators 2m_temperature` or asset, e.g. `--asset energy`')
 
-    variables = []
 
     # assets only contain indicators
     if o.asset:
@@ -396,14 +400,25 @@ def main():
                 parser.error(f'unknown indicator in assets.yml: {vname}. See indicators.yml for indicator definition')
             o.indicators.append(vname)
 
-    # add indicators
+    # folder structure for CSV results
+    loc_folder = o.location.lower() if o.location else f'{o.lat}N-{o.lon}E' 
+    asset_folder = o.asset if o.asset else 'all'
+
+    figures_created = False
+
+
+    # loop over indicators
     vdef_by_name = {v['name'] : v for v in variables_def}
     for name in o.indicators:
+
+        variables = []  # grouped variables
+
         vdef = vdef_by_name[name]
 
         vdef2 = vdef.get('era5',{})
         transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
         era5 = ERA5(vdef2.get('name', name), area=area, transform=transform, units=vdef['units'], alias=name)
+        era5.simulation_set = 'ERA5'
 
         if not o.dataset or o.dataset == 'era5' or o.bias_correction:
             variables.append(era5)
@@ -414,8 +429,6 @@ def main():
         if not o.dataset or o.dataset == 'cmip5':
             if o.model:
                 models = [o.model]
-            elif o.default_model:
-                models = [default_model]
             else:
                 if o.asset:
                     models = get_models_per_asset(o.asset, experiment=o.experiment)
@@ -423,114 +436,119 @@ def main():
                     models = get_models_per_indicator(name, experiment=o.experiment)
 
             for model in models:
-                cmip5 = CMIP5(vdef2.get('name', name), o.model, o.experiment, o.period, transform=transform, units=vdef['units'], alias=name)
+                experiment = o.experiment
+                cmip5 = CMIP5(vdef2.get('name', name), model, experiment, o.period, transform=transform, units=vdef['units'], alias=name)
                 cmip5.reference = era5
+                cmip5.simulation_set = f'CMIP5 - {model} - {experiment}'
                 variables.append(cmip5)
 
-    # folder structure for CSV results
-    loc_folder = o.location.lower() if o.location else f'{o.lat}N-{o.lon}E' 
-    asset_folder = o.asset if o.asset else 'all'
-
-    # download and convert to csv
-    for v in variables:
-        # if not os.path.exists(v.downloaded_file):
-            # v.download()
-        series = v.load_timeseries(o.lon, o.lat)
-
-        # additional transform for bias correction
-        if o.bias_correction and isinstance(v, CMIP5):
-            # ERA5 was already loaded
-            era5 = v.reference.load_timeseries(o.lon, o.lat)
-            y1, y2 = o.reference_period
-            t1 = nc.date2num(datetime.datetime(y1, 1,1), time_units)
-            t2 = nc.date2num(datetime.datetime(y2, 12,12), time_units)
-            climatology = era5.loc[t1:t2].mean()
-            ref = series.loc[t1:t2].mean()
-            delta = climatology - ref
-            print(f'apply bias correction to {v.dataset}, {v.variable}: {delta}')
-            series = series + delta
-
-
-        if isinstance(v, ERA5):
-            set_folder = 'era5'
-        elif isinstance(v, CMIP5):
-            set_folder = f'cmip5-{o.model}-{o.experiment}'
-        else:
-            raise ValueError(repr(v))
-
-        folder = os.path.join('indicators', loc_folder, asset_folder, set_folder)
-        os.makedirs(folder, exist_ok=True)
-        v.csv_file = os.path.join(folder, (v.alias or v.variable) + '.csv')
-        save_csv(series, v.csv_file)
-
-
-    if (o.png_region or o.png_timeseries) and o.view_all:
-        logging.warning('--view-all is not possible together with --png flags')
-        o.view_all = False
-
-    if o.view_region or o.view_timeseries or o.png_region or o.png_timeseries or o.view_all:
-        import matplotlib.pyplot as plt
-        try:
-            import cartopy
-            import cartopy.crs as ccrs
-            kwargs = dict(projection=ccrs.PlateCarree())
-        except ImportError:
-            logging.warning('install cartopy to benefit from coastlines')
-            cartopy = None
-            kwargs = {}
-
+        # download and convert to csv
         for v in variables:
-            if o.view_all:
-                fig = plt.figure()
-                ax1 = plt.subplot(2, 1, 1, **kwargs)
-                ax2 = plt.subplot(2, 1, 2)
-                o.view_region = True
-                o.view_timeseries = True
+            # if not os.path.exists(v.downloaded_file):
+                # v.download()
+            series = v.load_timeseries(o.lon, o.lat)
 
+            # additional transform for bias correction
+            if o.bias_correction and isinstance(v, CMIP5):
+                # ERA5 was already loaded
+                era5 = v.reference.load_timeseries(o.lon, o.lat)
+                y1, y2 = o.reference_period
+                t1 = nc.date2num(datetime.datetime(y1, 1,1), time_units)
+                t2 = nc.date2num(datetime.datetime(y2, 12,12), time_units)
+                climatology = era5.loc[t1:t2].mean()
+                ref = series.loc[t1:t2].mean()
+                delta = climatology - ref
+                print(f'apply bias correction to {v.dataset}, {v.variable}: {delta}')
+                series = series + delta
+
+
+            if isinstance(v, ERA5):
+                set_folder = 'era5'
+            elif isinstance(v, CMIP5):
+                set_folder = f'cmip5-{o.model}-{o.experiment}'
             else:
+                raise ValueError(repr(v))
+
+            folder = os.path.join('indicators', loc_folder, asset_folder, set_folder)
+            os.makedirs(folder, exist_ok=True)
+            v.csv_file = os.path.join(folder, (v.alias or v.variable) + '.csv')
+            save_csv(series, v.csv_file)
+
+
+        if (o.png_region or o.png_timeseries) and o.view_all:
+            logging.warning('--view-all is not possible together with --png flags')
+            o.view_all = False
+
+        if o.view_region or o.view_timeseries or o.png_region or o.png_timeseries or o.view_all:
+            import matplotlib.pyplot as plt
+            try:
+                import cartopy
+                import cartopy.crs as ccrs
+                kwargs = dict(projection=ccrs.PlateCarree())
+            except ImportError:
+                logging.warning('install cartopy to benefit from coastlines')
+                cartopy = None
+                kwargs = {}
+
+            for v in variables:
+                if figures_created and not (o.view_region or o.view_timeseries):
+                    # reuse same figure (speed up)
+                    if o.view_region or o.png_region:
+                        ax1.clear()
+                    if o.view_timeseries or o.png_timeseries:
+                        ax2.clear()
+                else:
+                    figures_created = True
+                    if o.view_all:
+                        fig = plt.figure()
+                        ax1 = plt.subplot(2, 1, 1, **kwargs)
+                        ax2 = plt.subplot(2, 1, 2)
+                        o.view_region = True
+                        o.view_timeseries = True
+
+                    else:
+                        if o.view_region or o.png_region:
+                            fig1 = plt.figure()
+                            ax1 = plt.subplot(1, 1, 1, **kwargs)
+
+                        if o.view_timeseries or o.png_timeseries:
+                            fig2 = plt.figure()
+                            ax2 = plt.subplot(1, 1, 1)
+
+                # import view
                 if o.view_region or o.png_region:
-                    fig1 = plt.figure()
-                    ax1 = plt.subplot(1, 1, 1, **kwargs)
+                    try:
+                        map = v.extract_map(area=area)
+                        h = ax1.imshow(map.values[::-1], extent=map.extent)
+                        plt.colorbar(h, ax=ax1, label=f'{v.variable} ({map.units})')
+                        ax1.set_title(v.dataset)
+                        ax1.plot(o.lon, o.lat, 'ko')
+
+                        if cartopy:
+                            ax1.coastlines(resolution='10m')
+
+                        if o.png_region:
+                            fig1.savefig(v.csv_file.replace('.csv', '-region.png'))
+
+                    except:
+                        raise
+                        pass
+
 
                 if o.view_timeseries or o.png_timeseries:
-                    fig2 = plt.figure()
-                    ax2 = plt.subplot(1, 1, 1)
+                    ts = v.load_timeseries(o.lon, o.lat)
+                    # convert units for easier reading of graphs
+                    ts.index = ts.index / 365.25 + 2000
+                    ts.index.name = 'years since 2000-01-01'
+                    ts.plot(ax=ax2, label=v.simulation_set)
+                    ax2.legend()
+                    ax2.set_ylabel(v.units)
+                    ax2.set_title(name)
 
-            # import view
-            if o.view_region or o.png_region:
-                try:
-                    map = v.extract_map(area=area)
-                    h = ax1.imshow(map.values[::-1], extent=map.extent)
-                    plt.colorbar(h, ax=ax1, label=f'{v.variable} ({map.units})')
-                    ax1.set_title(v.dataset)
-                    ax1.plot(o.lon, o.lat, 'ko')
+                    if o.png_timeseries:
+                        fig2.savefig(v.csv_file.replace('.csv', '.png'))
 
-                    if cartopy:
-                        ax1.coastlines(resolution='10m')
-
-                    if o.png_region:
-                        fig1.savefig(v.csv_file.replace('.csv', '-region.png'))
-                    if not o.view_region:
-                        plt.close(fig1)
-                except:
-                    raise
-                    pass
-
-
-            if o.view_timeseries or o.png_timeseries:
-                ts = v.load_timeseries(o.lon, o.lat)
-                # convert units for easier reading of graphs
-                ts.index = ts.index / 365.25 + 2000
-                ts.index.name = 'years since 2000-01-01'
-                ts.plot(ax=ax2)
-                ax2.set_ylabel(v.units)
-                ax2.set_title(v.dataset)
-
-                if o.png_timeseries:
-                    fig2.savefig(v.csv_file.replace('.csv', '.png'))
-                if not o.view_timeseries:
-                    plt.close(fig2)
-
+    if o.view_timeseries or o.view_region:
         plt.show()
 
 
