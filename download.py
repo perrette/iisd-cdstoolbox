@@ -619,8 +619,8 @@ def main():
                         if 'cb' in locals(): cb.remove()
                         map = v.extract_map(area=o.area)
                         h = ax1.imshow(map.values[::-1], extent=map.extent)
-                        cb = plt.colorbar(h, ax=ax1, label=f'{v.variable} ({map.units})')
-                        ax1.set_title(v.dataset)
+                        cb = plt.colorbar(h, ax=ax1, label=f'{v.units}')
+                        ax1.set_title(f'{name} ({v.simulation_set}): {map.time}')
                         ax1.plot(o.lon, o.lat, 'ko')
 
                         if cartopy:
