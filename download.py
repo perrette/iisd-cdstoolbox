@@ -446,6 +446,10 @@ def main():
     elif o.location:
         loc = {loc['name']: loc for loc in locations}[o.location]
         o.lon, o.lat = loc['lon'], loc['lat']
+        if 'area' in loc:
+            t, l, b, r = loc['area']
+            area = o.top or t, o.left or l, o.bottom or b, o.right or r # command-line rules over config file
+            o.top, o.left, o.bottom, o.right = area  
 
     if o.width_km or o.left and o.right and o.bottom and o.top:
         if o.left and o.right and o.bottom and o.top:
