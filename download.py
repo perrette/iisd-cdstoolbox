@@ -426,10 +426,7 @@ def main():
     g = parser.add_argument_group('area size controls')
     g.add_argument('--width-km', type=float, help='width of window (in km) around lon/lat (%(default)s km by default)')
     g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help='ERA5 tile in degress lon, lat (%(default)s by default)')
-    g.add_argument('-l','--left', type=float)
-    g.add_argument('-r','--right', type=float)
-    g.add_argument('-b','--bottom', type=float)
-    g.add_argument('-t','--top', type=float)
+    g.add_argument('--area', nargs=4, type=float, help='area as four numbers: top, left, bottom, right (CDS convention)')
 
     g = parser.add_argument_group('CMIP5 control')
     g.add_argument('--model', nargs='*', default=['ipsl_cm5a_mr'], choices=get_all_models())
@@ -452,26 +449,23 @@ def main():
 
     if not (o.location or (o.lon and o.lat)):
         parser.error('please provide a location, for instance `--location Welkenraedt`, or use custom lon and lat, e.g. `--lon 5.94 --lat 50.67`')
+    if o.area and o.width_km:
+        parser.error('only one of --area or --width-km may be provided')
 
     elif o.location:
         loc = {loc['name']: loc for loc in locations}[o.location]
         o.lon, o.lat = loc['lon'], loc['lat']
-        if 'area' in loc:
-            t, l, b, r = loc['area']
-            area = o.top or t, o.left or l, o.bottom or b, o.right or r # command-line rules over config file
-            o.top, o.left, o.bottom, o.right = area  
+        if 'area' in loc and not o.area and not o.width_km:
+            o.area = loc['area']
 
-    if o.width_km or o.left and o.right and o.bottom and o.top:
-        if o.left and o.right and o.bottom and o.top:
-            area = o.top, o.left, o.bottom, o.right
-        else:
-            t, l, b, r = make_area(o.lon, o.lat, o.width_km)
-            area = o.top or t, o.left or l, o.bottom or b, o.right or r
-    else:
+    if o.width_km:
+        o.area = make_area(o.lon, o.lat, o.width_km)
+
+    if not o.area:
         dx, dy = o.tile
         if np.mod(360, dx) != 0 or np.mod(180, dy) != 0:
             parser.error('tile size must be a divider of 360, 180')
-        area = era5_tile_area(o.lon, o.lat, dx, dy)
+        o.area = era5_tile_area(o.lon, o.lat, dx, dy)
 
     print('lon', o.lon)
     print('lat', o.lat)
@@ -503,7 +497,7 @@ def main():
 
         vdef2 = vdef.get('era5',{})
         transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
-        era5 = ERA5(vdef2.get('name', name), area=area, transform=transform, units=vdef['units'], alias=name)
+        era5 = ERA5(vdef2.get('name', name), area=o.area, transform=transform, units=vdef['units'], alias=name)
         era5.simulation_set = 'ERA5'
         era5.set_folder = 'era5'
 
@@ -578,7 +572,7 @@ def main():
                     try:
                         ax1.clear()
                         if 'cb' in locals(): cb.remove()
-                        map = v.extract_map(area=area)
+                        map = v.extract_map(area=o.area)
                         h = ax1.imshow(map.values[::-1], extent=map.extent)
                         cb = plt.colorbar(h, ax=ax1, label=f'{v.variable} ({map.units})')
                         ax1.set_title(v.dataset)
