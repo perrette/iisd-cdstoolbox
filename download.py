@@ -420,6 +420,7 @@ def main():
 
     g = parser.add_argument_group('area size controls')
     g.add_argument('--width-km', type=float, help='width of window (in km) around lon/lat (%(default)s km by default)')
+    g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help='ERA5 tile in degress lon, lat (%(default)s by default)')
     g.add_argument('-l','--left', type=float)
     g.add_argument('-r','--right', type=float)
     g.add_argument('-b','--bottom', type=float)
@@ -453,7 +454,10 @@ def main():
             t, l, b, r = make_area(o.lon, o.lat, o.width_km)
             area = o.top or t, o.left or l, o.bottom or b, o.right or r
     else:
-        area = era5_tile_area(o.lon, o.lat)
+        dx, dy = o.tile
+        if np.mod(360, dx) != 0 or np.mod(180, dy) != 0:
+            parser.error('tile size must be a divider of 360, 180')
+        area = era5_tile_area(o.lon, o.lat, dx, dy)
 
     print('lon', o.lon)
     print('lat', o.lat)
