@@ -527,7 +527,7 @@ def main():
                     # reuse same figure (speed up)
                     pass
                 else:
-                    figures_created = False
+                    figures_created = True
                     if o.view_region or o.png_region:
                         fig1 = plt.figure()
                         ax1 = plt.subplot(1, 1, 1, **kwargs)
@@ -540,9 +540,10 @@ def main():
                 if o.view_region or o.png_region:
                     try:
                         ax1.clear()
+                        if 'cb' in locals(): cb.remove()
                         map = v.extract_map(area=area)
                         h = ax1.imshow(map.values[::-1], extent=map.extent)
-                        plt.colorbar(h, ax=ax1, label=f'{v.variable} ({map.units})')
+                        cb = plt.colorbar(h, ax=ax1, label=f'{v.variable} ({map.units})')
                         ax1.set_title(v.dataset)
                         ax1.plot(o.lon, o.lat, 'ko')
 
