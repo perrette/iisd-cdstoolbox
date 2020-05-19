@@ -28,7 +28,7 @@ def convert_time_units_series(index, years=False):
         index = pd.Index(nc.date2num(dates, time_units), name=time_units)
     if years:
         index = index / 365.25 + start_year
-        index.name = f'years since {start_year}-01-01'
+        index.name = 'years'
     return index
 
 
