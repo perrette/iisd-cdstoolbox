@@ -214,7 +214,7 @@ class CMIP5(Dataset):
     lon = 'lon'
     lat = 'lat'
 
-    def __init__(self, variable, model, experiment, period, ensemble=None, **kwargs):
+    def __init__(self, variable, model, experiment, period, ensemble=None, historical=None, **kwargs):
         if ensemble is None:
             ensemble = 'r1i1p1'
 
@@ -233,6 +233,16 @@ class CMIP5(Dataset):
                 'ensemble_member': ensemble,
                 'format': 'zip',
             }, downloaded_file, **kwargs)
+
+        self.historical = historical
+
+
+    def load_timeseries(self, *args, **kwargs):
+        series = super().load_timeseries(*args, **kwargs)
+        if self.historical is None:
+            return series
+        historical = self.historical.load_timeseries(*args, **kwargs)
+        return pd.concat([historical, series]) #TODO: check name and units
 
 
     def get_ncfiles(self):
@@ -408,11 +418,6 @@ def main():
     parser.add_argument('--dataset', choices=['era5', 'cmip5'], help='dataset in combination with for `--indicators` and `--asset`')
     parser.add_argument('-o', '--output', default='indicators', help='output directory, default: %(default)s')
 
-    g = parser.add_argument_group('filters (post-processing)')
-    g.add_argument('--bias-correction', action='store_true', help='align CMIP5 variables with matching ERA5')
-    g.add_argument('--reference-period', default=[2006, 2019], nargs=2, type=int, help='reference period for bias-correction (default: %(default)s)')
-    g.add_argument('--yearly-bias', action='store_true', help='yearly instead of monthly bias correction')
-
     g = parser.add_argument_group('location')
     g.add_argument('--location', choices=[loc['name'] for loc in locations], help='location name defined in locations.yml')
     g.add_argument('--lon', type=float)
@@ -430,6 +435,11 @@ def main():
     g.add_argument('--model', nargs='*', default=['ipsl_cm5a_mr'], choices=get_all_models())
     g.add_argument('--experiment', nargs='*', choices=['rcp_2_6', 'rcp_4_5', 'rcp_6_0', 'rcp_8_5'], default=['rcp_8_5'])
     g.add_argument('--period', default='200601-210012')
+    g.add_argument('--historical', action='store_true', help='this flag provokes downloading historical data as well and extend back the CMIP5 timeseries to 1979')
+    g.add_argument('--bias-correction', action='store_true', help='align CMIP5 variables with matching ERA5')
+    g.add_argument('--reference-period', default=[2006, 2019], nargs=2, type=int, help='reference period for bias-correction (default: %(default)s)')
+    g.add_argument('--yearly-bias', action='store_true', help='yearly instead of monthly bias correction')
+
 
     g = parser.add_argument_group('visualization')
     g.add_argument('--view-region', action='store_true')
@@ -505,12 +515,17 @@ def main():
 
         if not o.dataset or o.dataset == 'cmip5':
             for model in o.model:
+                if o.historical:
+                    historical = CMIP5(vdef2.get('name', name), model, 'historical', '185001-200512', transform=transform, units=vdef['units'], alias=name)
+                else:
+                    historical = None
                 for experiment in o.experiment:
-                    cmip5 = CMIP5(vdef2.get('name', name), model, experiment, o.period, transform=transform, units=vdef['units'], alias=name)
+                    cmip5 = CMIP5(vdef2.get('name', name), model, experiment, o.period, transform=transform, units=vdef['units'], alias=name, historical=historical)
                     cmip5.reference = era5
                     cmip5.simulation_set = f'CMIP5 - {model} - {experiment}'
                     cmip5.set_folder = f'cmip5-{model}-{experiment}'
                     variables.append(cmip5)
+
 
         if not variables:
             logging.warning(f'no variable for {name}')
@@ -605,6 +620,10 @@ def main():
                 ax2.legend()
                 ax2.set_ylabel(v.units)
                 ax2.set_title(name)
+
+                mi, ma = ax2.get_xlim()
+                if mi < 0:
+                    ax2.set_xlim(xmin=0)  # start at start_year (i.e. ERA5 start)
 
                 if o.png_timeseries:
                     figname = os.path.join(o.output, loc_folder, asset_folder, 'all_'+name+'.png')
