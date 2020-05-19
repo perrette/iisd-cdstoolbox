@@ -470,6 +470,9 @@ def main():
     #g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help='ERA5 tile in degress lon, lat (%(default)s by default)')
     g.add_argument('--area', nargs=4, type=float, help='area as four numbers: top, left, bottom, right (CDS convention)')
 
+    g = parser.add_argument_group('ERA5 control')
+    g.add_argument('--year', nargs='+', default=list(range(1979, 2019+1)), help='ERA5 years to download, default: %(default)s')
+
     g = parser.add_argument_group('CMIP5 control')
     g.add_argument('--model', nargs='*', default=['ipsl_cm5a_mr'], choices=get_all_models())
     g.add_argument('--experiment', nargs='*', choices=['rcp_2_6', 'rcp_4_5', 'rcp_6_0', 'rcp_8_5'], default=['rcp_8_5'])
@@ -539,7 +542,7 @@ def main():
 
         vdef2 = vdef.get('era5',{})
         transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
-        era5 = ERA5(vdef2.get('name', name), area=o.area, transform=transform, units=vdef['units'], tiled=o.tiled, alias=name)
+        era5 = ERA5(vdef2.get('name', name), area=o.area, transform=transform, year=o.year, units=vdef['units'], tiled=o.tiled, alias=name)
         era5.simulation_set = 'ERA5'
         era5.set_folder = 'era5'
 
