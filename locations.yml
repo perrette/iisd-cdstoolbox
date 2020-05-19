@@ -1,7 +1,7 @@
 - name: Welkenraedt
   lon: 5.94
   lat: 50.67
-  area: [55, 5, 42, 15]
+  area: [55, -5, 42, 15]
 
 - name: Johannesburg
   lon: 28
