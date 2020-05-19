@@ -4,3 +4,4 @@ scipy
 dask
 xarray
 pandas
+shapely

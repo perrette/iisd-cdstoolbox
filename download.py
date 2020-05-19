@@ -266,7 +266,10 @@ class ERA5(Dataset):
     lon = 'longitude'
     lat = 'latitude'
 
-    def __init__(self, variable, year=None, area=None, **kwargs):
+    def __init__(self, variable, year=None, area=None, tiled=True, **kwargs):
+        """
+        tiled: experimental parameter to split the downloaded data into tiles, for easier re-reuse
+        """
         if area is None:
             area = [90, -180, -90, 180]
         if year is None:
@@ -277,6 +280,9 @@ class ERA5(Dataset):
         year0, yearf = year[0], year[-1]
         name = f'{variable}_{year0}-{yearf}_{area[0]}-{area[1]}-{area[2]}-{area[3]}'
         downloaded_file = os.path.join(folder, name+'.nc')
+        self.tiled = tiled
+        if self.tiled:
+            self.tiles = [ERA5(variable, year, subarea, tiled=False, **kwargs) for subarea in tiled_area(area)]
 
         super().__init__(dataset, {
                 'format': 'netcdf',
@@ -289,6 +295,12 @@ class ERA5(Dataset):
             }, downloaded_file, **kwargs)
 
     def get_ncfiles(self):
+        if self.tiled:
+            ncfiles = []
+            for v in self.tiles:
+                ncfiles.extend(v.get_ncfiles())
+            return ncfiles
+
         if not os.path.exists(self.downloaded_file):
             self.download()
         return [self.downloaded_file]
@@ -304,16 +316,39 @@ def make_area(lon, lat, w):
     return lat+latw, lon-lonw, lat-latw, lon+lonw
 
 
+def tile_coords(dx=10, dy=5):
+    lons = np.arange(0, 360, dx)  # tiles in [0, 360 to match CMIP5]
+    lats = np.arange(-90, 90, dy)
+    return lons, lats
+
 def era5_tile_area(lon, lat, dx=10, dy=5):
     """define a "tile" to re-use some of the files
     """
     # if lon > 180: lon -= 360
-    lons = np.arange(0, 360, dx)  # tiles in [0, 360 to match CMIP5]
-    lats = np.arange(-90, 90, dy)
+    lons, lats = tile_coords(dx, dy)
     j = np.searchsorted(lons, lon)
     i = np.searchsorted(lats, lat)
     area = lats[i], lons[j-1], lats[i-1], lons[j]
     return np.array(area).tolist() # convert numpy data type to json-compatible python objects
+
+
+def tiled_area(area, dx=10, dy=5):
+    """return tiles
+    """
+    import shapely.geometry
+    lons, lats = tile_coords(*tile)
+    t, l, b, r = area
+    target = shapely.geometry.Polygon([(l,t), (r,t), (r, b), (l, b)])
+    subareas = []
+    for i in range(len(lons)-1):
+        for j in range(len(lats)-1):
+            lon1, lon2 = lons[i:i+1]
+            lat1, lat2 = lats[j:j+1]
+            t, l, b, r = lat2, lon1, lat1, lon2
+            test = shapely.geometry.Polygon([(l,t), (r,t), (r, b), (l, b)])
+            if target.overlaps(test):
+                subareas.append([t, l, b, r])
+    return subareas
 
 
 class Transform:
