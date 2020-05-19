@@ -14,9 +14,22 @@ import yaml
 import datetime
 import cdsapi
 
-from netcdf_to_csv import convert_time
+#from netcdf_to_csv import convert_time
 
-time_units = 'days since 2000-01-01'
+start_year = 1979
+time_units = f'days since {start_year}-01-01'
+
+def convert_time_units_series(index, years=False):
+    """convert pandas index to common units
+    """
+    # make sure we use the same start year
+    if index.name != time_units:
+        dates = nc.num2date(index, index.name)
+        index = pd.Index(nc.date2num(dates, time_units), name=time_units)
+    if years:
+        index = index / 365.25 + start_year
+        index.name = f'years since {start_year}-01-01'
+    return index
 
 
 class Dataset:
@@ -91,8 +104,8 @@ class Dataset:
             self.download()
         with nc.Dataset(f) as ds:
             variable = self.get_varname(ds)
-            # time = nc.num2date(ds['time'][:], ds['time'].units, ds['time'].calendar)
-            time, time_units = convert_time(ds)
+            time0 = pd.Index(ds['time'][:], name=ds['time'].units)
+            time = convert_time_units_series(time0)
 
         region = xr.open_dataset(f)[variable]
         londim = getattr(region, self.lon)
@@ -106,7 +119,6 @@ class Dataset:
 
         units = region.units # file
         series = pd.Series(timeseries, index=time, name=f'{self.variable} ({units})')
-        series.index.name = time_units
 
         if transform:
             series = self._transform_units(series)
@@ -248,7 +260,7 @@ class ERA5(Dataset):
         if area is None:
             area = [90, -180, -90, 180]
         if year is None:
-            year = list(range(2000, 2019+1))  # multiple year OK
+            year = list(range(1979, 2019+1))  # multiple year OK
         dataset = 'reanalysis-era5-single-levels-monthly-means'
         product_type = 'monthly_averaged_reanalysis'
         folder = os.path.join('download', dataset, product_type)
@@ -308,7 +320,9 @@ class Transform:
 
 
 def load_csv(fname):
-    return pd.read_csv(fname, index_col=0, comment='#').squeeze()
+    series = pd.read_csv(fname, index_col=0, comment='#').squeeze()
+    series.index = convert_time_units_series(series.index) # just in case units are different
+    return series
 
 def save_csv(series, fname):
     series.to_csv(fname)
@@ -562,8 +576,7 @@ def main():
                     ax2.clear()
                     ts = load_csv(v.csv_file)
                     # convert units for easier reading of graphs
-                    ts.index = ts.index / 365.25 + 2000
-                    ts.index.name = 'years since 2000-01-01'
+                    ts.index = convert_time_units_series(ts.index, years=True)
                     ts.plot(ax=ax2, label=v.simulation_set)
                     ax2.legend()
                     ax2.set_ylabel(v.units)
@@ -579,8 +592,7 @@ def main():
                 for v in variables:
                     ts = load_csv(v.csv_file)
                     # convert units for easier reading of graphs
-                    ts.index = ts.index / 365.25 + 2000
-                    ts.index.name = 'years since 2000-01-01'
+                    ts.index = convert_time_units_series(ts.index, years=True)
                     ts.plot(ax=ax2, label=v.simulation_set)
                 ax2.legend()
                 ax2.set_ylabel(v.units)
