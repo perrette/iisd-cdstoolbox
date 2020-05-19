@@ -419,7 +419,6 @@ def main():
     g = parser.add_argument_group('visualization')
     g.add_argument('--view-region', action='store_true')
     g.add_argument('--view-timeseries', action='store_true')
-    g.add_argument('--view-all', action='store_true')
     g.add_argument('--png-region', action='store_true')
     g.add_argument('--png-timeseries', action='store_true')
 
@@ -508,11 +507,7 @@ def main():
             save_csv(series, v.csv_file)
 
 
-        if (o.png_region or o.png_timeseries) and o.view_all:
-            logging.warning('--view-all is not possible together with --png flags')
-            o.view_all = False
-
-        if o.view_region or o.view_timeseries or o.png_region or o.png_timeseries or o.view_all:
+        if o.view_region or o.view_timeseries or o.png_region or o.png_timeseries:
             import matplotlib.pyplot as plt
             try:
                 import cartopy
@@ -528,22 +523,14 @@ def main():
                     # reuse same figure (speed up)
                     pass
                 else:
-                    figures_created = True
-                    if o.view_all:
-                        fig = plt.figure()
-                        ax1 = plt.subplot(2, 1, 1, **kwargs)
-                        ax2 = plt.subplot(2, 1, 2)
-                        o.view_region = True
-                        o.view_timeseries = True
+                    figures_created = False
+                    if o.view_region or o.png_region:
+                        fig1 = plt.figure()
+                        ax1 = plt.subplot(1, 1, 1, **kwargs)
 
-                    else:
-                        if o.view_region or o.png_region:
-                            fig1 = plt.figure()
-                            ax1 = plt.subplot(1, 1, 1, **kwargs)
-
-                        if o.view_timeseries or o.png_timeseries:
-                            fig2 = plt.figure()
-                            ax2 = plt.subplot(1, 1, 1)
+                    if o.view_timeseries or o.png_timeseries:
+                        fig2 = plt.figure()
+                        ax2 = plt.subplot(1, 1, 1)
 
                 # import view
                 if o.view_region or o.png_region:
