@@ -266,7 +266,7 @@ class ERA5(Dataset):
     lon = 'longitude'
     lat = 'latitude'
 
-    def __init__(self, variable, year=None, area=None, tiled=True, **kwargs):
+    def __init__(self, variable, year=None, area=None, tiled=False, **kwargs):
         """
         tiled: experimental parameter to split the downloaded data into tiles, for easier re-reuse
         """
@@ -465,7 +465,9 @@ def main():
 
     g = parser.add_argument_group('area size controls')
     g.add_argument('--width-km', type=float, help='width of window (in km) around lon/lat (%(default)s km by default)')
-    g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help='ERA5 tile in degress lon, lat (%(default)s by default)')
+    g.add_argument('--tiled', action='store_true', help=argparse.SUPPRESS)
+    g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help=argparse.SUPPRESS)
+    #g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help='ERA5 tile in degress lon, lat (%(default)s by default)')
     g.add_argument('--area', nargs=4, type=float, help='area as four numbers: top, left, bottom, right (CDS convention)')
 
     g = parser.add_argument_group('CMIP5 control')
@@ -537,7 +539,7 @@ def main():
 
         vdef2 = vdef.get('era5',{})
         transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
-        era5 = ERA5(vdef2.get('name', name), area=o.area, transform=transform, units=vdef['units'], alias=name)
+        era5 = ERA5(vdef2.get('name', name), area=o.area, transform=transform, units=vdef['units'], tiled=o.tiled, alias=name)
         era5.simulation_set = 'ERA5'
         era5.set_folder = 'era5'
 
