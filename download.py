@@ -266,7 +266,7 @@ class ERA5(Dataset):
     lon = 'longitude'
     lat = 'latitude'
 
-    def __init__(self, variable, year, area=None, tiled=False, **kwargs):
+    def __init__(self, variable, year=None, area=None, tiled=False, **kwargs):
         """
         tiled: experimental parameter to split the downloaded data into tiles, for easier re-reuse
         """
@@ -274,10 +274,12 @@ class ERA5(Dataset):
             area = [90, -180, -90, 180]
         else:
             area = np.array(area).tolist() # be sure it is json serializable
+        if year is None:
+            year = list(range(1979, 2019+1))  # multiple year OK
         dataset = 'reanalysis-era5-single-levels-monthly-means'
         product_type = 'monthly_averaged_reanalysis'
         folder = os.path.join('download', dataset, product_type)
-        year0, yearf = year[0], year[-1] if type(year) is not int else (year, year)
+        year0, yearf = year[0], year[-1]
         name = f'{variable}_{year0}-{yearf}_{area[0]}-{area[1]}-{area[2]}-{area[3]}'
         downloaded_file = os.path.join(folder, name+'.nc')
         self.tiled = tiled
@@ -468,14 +470,10 @@ def main():
     #g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help='ERA5 tile in degress lon, lat (%(default)s by default)')
     g.add_argument('--area', nargs=4, type=float, help='area as four numbers: top, left, bottom, right (CDS convention)')
 
-    g = parser.add_argument_group('ERA5 control (beside area)')
-    g.add_argument('--era5-period', nargs=2, type=int, default=[1979, 2019], help='ERA5 period, default: %(default)s')
-
     g = parser.add_argument_group('CMIP5 control')
     g.add_argument('--model', nargs='*', default=['ipsl_cm5a_mr'], choices=get_all_models())
     g.add_argument('--experiment', nargs='*', choices=['rcp_2_6', 'rcp_4_5', 'rcp_6_0', 'rcp_8_5'], default=['rcp_8_5'])
-    g.add_argument('--period', nargs=2, type=int, default=(2006, 2100), help='CMIP5 period, default: %(default)s')
-    #g.add_argument('--period', default='200601-210012')
+    g.add_argument('--period', default='200601-210012')
     g.add_argument('--historical', action='store_true', help='this flag provokes downloading historical data as well and extend back the CMIP5 timeseries to 1979')
     g.add_argument('--bias-correction', action='store_true', help='align CMIP5 variables with matching ERA5')
     g.add_argument('--reference-period', default=[2006, 2019], nargs=2, type=int, help='reference period for bias-correction (default: %(default)s)')
@@ -541,8 +539,7 @@ def main():
 
         vdef2 = vdef.get('era5',{})
         transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
-        y1, y2 = o.era5_period
-        era5 = ERA5(vdef2.get('name', name), area=o.area, year=list(range(y1, y2+1)), transform=transform, units=vdef['units'], tiled=o.tiled, alias=name)
+        era5 = ERA5(vdef2.get('name', name), area=o.area, transform=transform, units=vdef['units'], tiled=o.tiled, alias=name)
         era5.simulation_set = 'ERA5'
         era5.set_folder = 'era5'
 
@@ -559,9 +556,7 @@ def main():
                 else:
                     historical = None
                 for experiment in o.experiment:
-                    y1, y2 = o.period
-                    period = f'{y1}01-{y2}12'
-                    cmip5 = CMIP5(vdef2.get('name', name), model, experiment, period, transform=transform, units=vdef['units'], alias=name, historical=historical)
+                    cmip5 = CMIP5(vdef2.get('name', name), model, experiment, o.period, transform=transform, units=vdef['units'], alias=name, historical=historical)
                     cmip5.reference = era5
                     cmip5.simulation_set = f'CMIP5 - {model} - {experiment}'
                     cmip5.set_folder = f'cmip5-{model}-{experiment}'
