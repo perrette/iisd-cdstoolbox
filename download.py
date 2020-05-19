@@ -490,6 +490,10 @@ def main():
                     cmip5.set_folder = f'cmip5-{model}-{experiment}'
                     variables.append(cmip5)
 
+        if not variables:
+            logging.warning(f'no variable for {name}')
+            continue
+
         # download and convert to csv
         for v in variables:
             series = v.load_timeseries(o.lon, o.lat)
@@ -569,6 +573,7 @@ def main():
 
             # all simulation sets on one figure
             if o.view_timeseries or o.png_timeseries:
+                ax2 = plt.gca()
                 ax2.clear()
                 for v in variables:
                     ts = load_csv(v.csv_file)
