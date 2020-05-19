@@ -272,6 +272,8 @@ class ERA5(Dataset):
         """
         if area is None:
             area = [90, -180, -90, 180]
+        else:
+            area = np.array(area).tolist() # be sure it is json serializable
         if year is None:
             year = list(range(1979, 2019+1))  # multiple year OK
         dataset = 'reanalysis-era5-single-levels-monthly-means'
@@ -337,18 +339,20 @@ def tiled_area(area, dx=10, dy=5):
     """return tiles
     """
     import shapely.geometry
-    lons, lats = tile_coords(*tile)
+    lons, lats = tile_coords(dx, dy)
+    logging.debug(f'area: {area}')
     t, l, b, r = area
     target = shapely.geometry.Polygon([(l,t), (r,t), (r, b), (l, b)])
     subareas = []
     for i in range(len(lons)-1):
         for j in range(len(lats)-1):
-            lon1, lon2 = lons[i:i+1]
-            lat1, lat2 = lats[j:j+1]
+            lon1, lon2 = lons[i:i+2]
+            lat1, lat2 = lats[j:j+2]
             t, l, b, r = lat2, lon1, lat1, lon2
             test = shapely.geometry.Polygon([(l,t), (r,t), (r, b), (l, b)])
             if target.overlaps(test):
                 subareas.append([t, l, b, r])
+    logging.debug(f'subareas: {subareas}')
     return subareas
 
 
