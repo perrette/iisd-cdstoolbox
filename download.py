@@ -267,6 +267,8 @@ class ERA5(Dataset):
             }, downloaded_file, **kwargs)
 
     def get_ncfiles(self):
+        if not os.path.exists(self.downloaded_file):
+            self.download()
         return [self.downloaded_file]
 
 
