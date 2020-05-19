@@ -620,7 +620,8 @@ def main():
                         map = v.extract_map(area=o.area)
                         h = ax1.imshow(map.values[::-1], extent=map.extent)
                         cb = plt.colorbar(h, ax=ax1, label=f'{v.units}')
-                        ax1.set_title(f'{name} ({v.simulation_set}): {map.time}')
+                        date = datetime.date(map['time.year'], map['time.month'], map['time.day'])
+                        ax1.set_title(f'{name} ({v.simulation_set}): {date}')
                         ax1.plot(o.lon, o.lat, 'ko')
 
                         if cartopy:
