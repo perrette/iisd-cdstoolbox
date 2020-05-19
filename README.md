@@ -44,28 +44,28 @@ The corresponding csv timeseries will be stored in `indicators/welkenraedt/energ
 The `indicators` folder is organized by location, asset class, simulation set and indicator name. The aim is to provide multiple sets for Savi simulation. For instance, `era5` for past simulations, and various `cmip5` versions for future simulations, that may vary with model and experiment. For instance the above command creates the folder structure (here a subset of all variables is shown):
 
 	indicators/
-		welkenraedt/
-			energy/
-				era5/
-					2m_temperature.csv
-					precipitation.csv
-					...
-				cmip5-ipsl_cm5a_mr-rcp_8_5/
-					2m_temperature.csv
-					precipitation.csv
-					...
-				...
+	  welkenraedt/
+	    energy/
+		  era5/
+			2m_temperature.csv
+			precipitation.csv
+			...
+		  cmip5-ipsl_cm5a_mr-rcp_8_5/
+			2m_temperature.csv
+			precipitation.csv
+			...
+		  ...
 
-with two simulation sets `era5` and `cmip5-ipsl_cm5a_mr-rcp_8_5`. It is possible to specify other models and experiment via `--model`  and `--experiment` parameters, to add futher simulation sets and thus test how the choice of climate models and experiment affect the result of Savi simulations. 
+with two simulation sets `era5` and `cmip5-ipsl_cm5a_mr-rcp_8_5`. It is possible to specify other models and experiment via `--model`  and `--experiment` parameters, to add futher simulation sets and thus test how the choice of climate models and experiment affect the result of Savi simulations. Additionally, the flag `--historical` prompts the download of the 1850-2005 historical experiment to obtain a longer timeseries (instead of simply future scenarios 2006-2100).
 
 Compared to raw CDS API, some variables are renamed and scaled so that units match and are the same across simulation sets.
-For instance, temperature was adjusted from Kelvin to degree Celsius, and precipitation was renamed and units-adjusted into mm per month from original (mean_total_precipitation_rate (mm/s) in ERA5, and mean_precipitation_flux (mm/s) in CMIP5). Additionally, cmip5 data can be corrected so that there mean over a period of overlap (2006-2019) matches the mean of era5 data. 
+For instance, temperature was adjusted from Kelvin to degree Celsius, and precipitation was renamed and units-adjusted into mm per month from original (mean_total_precipitation_rate (mm/s) in ERA5, and mean_precipitation_flux (mm/s) in CMIP5). Additionally, cmip5 data can be corrected so that there mean over a period of overlap (2006-2019 by default) matches the mean of era5 data. 
 
 Additionally to the files shown in the example folder listing above, figures are also created for rapid control of the data, so that next to `2m_temperature.csv` we would also have `2m_temperature.png` (timeseries) and `2m_temperature-region.png` (region).
 
-To have all features above activated (figures and bias-correction), use the full command:
+To have all features above activated (figures and bias-correction and historical data), use the full command:
 
-	python download.py --asset energy --location welkenraedt --png-timeseries --png-region --bias-correction
+	python download.py --asset energy --location welkenraedt --png-timeseries --png-region --bias-correction --historical
 
 Additional controls are provided in configuration files:
 - controls which indicators are available, how they are renamed and unit-adjusted: [indicators.yml](indicators.yml)
