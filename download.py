@@ -317,9 +317,10 @@ def make_area(lon, lat, w):
 
 
 def tile_coords(dx=10, dy=5):
-    lons = np.arange(0, 360, dx)  # tiles in [0, 360 to match CMIP5]
+    lons = np.arange(-180, 360, dx)  # tiles works for [-180, 180] as well as [0, 360]
     lats = np.arange(-90, 90, dy)
     return lons, lats
+
 
 def era5_tile_area(lon, lat, dx=10, dy=5):
     """define a "tile" to re-use some of the files
