@@ -495,15 +495,20 @@ def main():
     g.add_argument('--area', nargs=4, type=float, help='area as four numbers: top, left, bottom, right (CDS convention)')
 
     g = parser.add_argument_group('ERA5 control')
-    g.add_argument('--year', nargs='+', default=list(range(1979, 2019+1)), help='ERA5 years to download, default: %(default)s')
+    # g.add_argument('--year', nargs='+', default=list(range(1979, 2019+1)), help='ERA5 years to download, default: %(default)s')
+    g.add_argument('--year', nargs='+', default=list(range(1979, 2019+1)), help=argparse.SUPPRESS)
 
     g = parser.add_argument_group('CMIP5 control')
     g.add_argument('--model', nargs='*', default=['ipsl_cm5a_mr'], choices=get_all_models())
     g.add_argument('--experiment', nargs='*', choices=['rcp_2_6', 'rcp_4_5', 'rcp_6_0', 'rcp_8_5'], default=['rcp_8_5'])
-    g.add_argument('--period', default='200601-210012')
-    g.add_argument('--historical', action='store_true', help='this flag provokes downloading historical data as well and extend back the CMIP5 timeseries to 1979')
-    g.add_argument('--bias-correction', action='store_true', help='align CMIP5 variables with matching ERA5')
-    g.add_argument('--reference-period', default=[2006, 2019], nargs=2, type=int, help='reference period for bias-correction (default: %(default)s)')
+    g.add_argument('--period', default='200601-210012', help=argparse.SUPPRESS) # all CMIP5 models and future experiements share the same parameter...
+    # g.add_argument('--historical', action='store_true', help='this flag provokes downloading historical data as well and extend back the CMIP5 timeseries to 1979')
+    g.add_argument('--historical', action='store_true', default=True, help=argparse.SUPPRESS)
+    g.add_argument('--no-historical', action='store_false', dest='historical', help=argparse.SUPPRESS)
+    # g.add_argument('--bias-correction', action='store_true', help='align CMIP5 variables with matching ERA5')
+    g.add_argument('--bias-correction', action='store_true', default=True, help=argparse.SUPPRESS)
+    g.add_argument('--no-bias-correction', action='store_false', dest='bias_correction', help='suppress bias-correction for CMIP5 data')
+    g.add_argument('--reference-period', default=[1979, 2019], nargs=2, type=int, help='reference period for bias correction (default: %(default)s)')
     g.add_argument('--yearly-bias', action='store_true', help='yearly instead of monthly bias correction')
 
 
