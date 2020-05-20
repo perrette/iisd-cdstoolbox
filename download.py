@@ -126,8 +126,31 @@ class Dataset:
         return series
 
 
+    def _nc_area(self, f):
+        with nc.Dataset(f) as ds:
+            londim = ds[self.lon]
+            latdim = ds[self.lat]
+            l, r = londim[0].tolist(), londim[len(londim)-1].tolist()
+            b, t =latdim[0].tolist(), latdim[len(latdim)-1].tolist()
+        if b > t:
+            b, t = t, b
+        return t, l, b, r
+
+
+    def _within_ncfile(self, f, lon, lat):
+        ' check if lon, lat point is within the netCDFfile'
+        t, l, b, r = self._nc_area(f)
+        # print(f, (l, r, b, t), lon, lat)
+        if lon < l: return False
+        if lon > r: return False
+        if lat < b: return False
+        if lat > t: return False
+        return True
+
+
     def extract_timeseries(self, lon, lat, transform=True):
-        files = self.get_ncfiles()
+        files = [f for f in self.get_ncfiles() if self._within_ncfile(f, lon, lat)]
+        assert files, f'no file contains (lon, lat: {self.get_ncfiles()}'  # used only for tiled ERA5
         return pd.concat([self._extract_timeseries(f, lon, lat, transform) for f in files])
 
 
@@ -340,7 +363,7 @@ def tiled_area(area, dx=10, dy=5):
     """
     import shapely.geometry
     lons, lats = tile_coords(dx, dy)
-    logging.debug(f'area: {area}')
+    # print(f'area: {area}')
     t, l, b, r = area
     target = shapely.geometry.Polygon([(l,t), (r,t), (r, b), (l, b)])
     subareas = []
@@ -350,9 +373,9 @@ def tiled_area(area, dx=10, dy=5):
             lat1, lat2 = lats[j:j+2]
             t, l, b, r = lat2, lon1, lat1, lon2
             test = shapely.geometry.Polygon([(l,t), (r,t), (r, b), (l, b)])
-            if target.overlaps(test):
+            if target.intersects(test) and not target.touches(test): # touches means only boundary touches
                 subareas.append([t, l, b, r])
-    logging.debug(f'subareas: {subareas}')
+    # print(f'subareas: {subareas}')
     return subareas
 
 
@@ -457,6 +480,7 @@ def main():
 
     parser.add_argument('--dataset', choices=['era5', 'cmip5'], help='dataset in combination with for `--indicators` and `--asset`')
     parser.add_argument('-o', '--output', default='indicators', help='output directory, default: %(default)s')
+    parser.add_argument('--overwrite',action='store_true', help=argparse.SUPPRESS)
 
     g = parser.add_argument_group('location')
     g.add_argument('--location', choices=[loc['name'] for loc in locations], help='location name defined in locations.yml')
@@ -464,7 +488,7 @@ def main():
     g.add_argument('--lat', type=float)
 
     g = parser.add_argument_group('area size controls')
-    g.add_argument('--width-km', type=float, help='width of window (in km) around lon/lat (%(default)s km by default)')
+    g.add_argument('--width-km', type=float, help=argparse.SUPPRESS)
     g.add_argument('--tiled', action='store_true', help=argparse.SUPPRESS)
     g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help=argparse.SUPPRESS)
     #g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help='ERA5 tile in degress lon, lat (%(default)s by default)')
@@ -572,7 +596,7 @@ def main():
 
         # download and convert to csv
         for v in variables:
-            series = v.load_timeseries(o.lon, o.lat)
+            series = v.load_timeseries(o.lon, o.lat, overwrite=o.overwrite)
 
             if o.bias_correction and isinstance(v, CMIP5):
                 era5 = v.reference.load_timeseries(o.lon, o.lat)
