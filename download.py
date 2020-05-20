@@ -178,58 +178,81 @@ class Dataset:
         return timeseries[timeseries.index >= 0]  # only load data after 1979
 
 
-    def _extract_map(self, dataarray, time, area=None):
-        if time is None:
-            time = dataarray.time[-1]        
-        map = dataarray.sel(time=time)
-        lon = map.coords[self.lon].values
-        lat = map.coords[self.lat].values
-
-        # we want to deal with increasing lat            
-        if lat[1] < lat[0]: 
-            map = map.isel({self.lat:slice(None, None, -1)})
-            lat = map.coords[self.lat].values
-            assert lat[1] > lat[0]
-
-        if area:
-            print('area', area)
-            t, l, b, r = area
-            ilon = ((lon >= l) & (lon <= r))
-            ilat = ((lat <= t) & (lat >= b))
-            map = map.isel({self.lon:ilon, self.lat:ilat})
-            lon = map.coords[self.lon].values
-            lat = map.coords[self.lat].values
-
-        if self.transform:
-            map = self.transform(map)
-
-        if self.units:
-            map.attrs['units'] = self.units  # enforce user-defined units if defined
-
-
-        if (lon.size < 2) or (lat.size < 2):
-            raise ValueError('region area is too small: point-wise map')
-
-        # add extent as an attribute, for further plotting
-        l = lon[0] - (lon[1]-lon[0])/2 # add half a grid cell
-        r = lon[-1] + (lon[-1]-lon[-2])/2
-        b = lat[0] - (lat[1]-lat[0])/2
-        t = lat[-1] + (lat[-1]-lat[-2])/2
-        map.attrs['extent'] = np.array((l, r, b, t)).tolist()
-
-        return map
-
-
-    def extract_map(self, time=None, area=None):
+    def load_cube(self, time=None, area=None, roll=False):
         files = self.get_ncfiles()
         with nc.Dataset(files[0]) as ds:
             variable = self.get_varname(ds)
-        if len(files) == 1:
-            dataarray = xr.open_dataset(files[0])[variable]
-        else:
-            dataarray = xr.open_mfdataset(files, combine='by_coords')[variable]
-        return self._extract_map(dataarray, time, area)
 
+        if len(files) == 1:
+            cube = xr.open_dataset(files[0])[variable]
+        else:
+            cube = xr.open_mfdataset(files, combine='by_coords')[variable]
+
+        if time is not None:
+            cube = cube.sel(time=time)
+
+        # rename coordinates
+        cube = cube.rename({self.lon: 'lon', self.lat: 'lat'})
+
+        if roll:
+            cube = roll_longitude(cube)
+
+        lat = cube.lat.values
+
+        # we want to deal with increasing lat            
+        if lat[1] < lat[0]: 
+            cube = cube.isel({'lat':slice(None, None, -1)})
+            lat = cube.coords['lat'].values
+            assert lat[1] > lat[0]
+
+        if area is not None:
+            cube = select_area(cube, area)
+
+        if self.transform:
+            cube = self.transform(cube)
+
+        if self.units:
+            cube.attrs['units'] = self.units  # enforce user-defined units if defined
+
+        return cube
+
+
+def roll_longitude(cube):
+    ''' [0, 360] into [-180, 180] '''
+    lon = cube.lon.values
+    if lon[-1] > 180: 
+        # [0, 360] into [-180, 180]
+        lon = np.where(lon <= 180, lon, lon - 360)
+    else:
+        # [-180, 180] into [0, 360]
+        lon = np.where(lon >= 0, lon, lon + 360)
+    return cube.assign_coords(lon=lon).roll(lon=lon.size//2, roll_coords=True) 
+
+
+def select_area(cube, area):
+    t, l, b, r = area
+    lat = cube.lat.values
+    lon = cube.lon.values
+    ilon = ((lon >= l) & (lon <= r))
+    ilat = ((lat <= t) & (lat >= b))
+    return cube.isel({'lon':ilon, 'lat':ilat})
+
+
+def cube_area(cube, extent=False):
+    assert 'lon' in cube.coords and 'lat' in cube.coords, 'cannot calculate cube_area without lon and lat coordinates'
+    lat = cube.lat.values
+    lon = cube.lon.values
+    if (lon.size < 2) or (lat.size < 2):
+        raise ValueError('region area is too small: point-wise map')
+    # add extent as an attribute, for further plotting
+    l = lon[0] - (lon[1]-lon[0])/2 # add half a grid cell
+    r = lon[-1] + (lon[-1]-lon[-2])/2
+    b = lat[0] - (lat[1]-lat[0])/2
+    t = lat[-1] + (lat[-1]-lat[-2])/2
+    if extent:
+        return np.array((l, r, b, t)).tolist() # for imshow...
+    else:
+        return np.array((t, l, b, r)).tolist()
 
 
 class CMIP5(Dataset):
@@ -645,25 +668,31 @@ def main():
 
                 # import view
                 if o.view_region or o.png_region:
-                    try:
-                        ax1.clear()
-                        if 'cb' in locals(): cb.remove()
-                        map = v.extract_map(area=o.area)
-                        h = ax1.imshow(map.values[::-1], extent=map.extent)
-                        cb = plt.colorbar(h, ax=ax1, label=f'{v.units}')
-                        date = datetime.date(map['time.year'], map['time.month'], map['time.day'])
-                        ax1.set_title(f'{name} ({v.simulation_set}): {date}')
-                        ax1.plot(o.lon, o.lat, 'ko')
+                    ax1.clear()
+                    if not o.view_region and 'cb' in locals(): cb.remove()
+                    if isinstance(v, ERA5):
+                        y1, y2 = o.reference_period
+                        roll = False
+                        title = f'{name} (ERA5): {y1}-{y2}'
+                    else:
+                        y1, y2 = 2071, 2100
+                        roll=True if o.area[1] < 0 else False
+                        title = f'{name} ({labels.get(v.experiment, v.experiment)}): {y1}-{y2}'
 
-                        if cartopy:
-                            ax1.coastlines(resolution='10m')
+                    refslice = slice(str(y1), str(y2))
+                    map = v.load_cube(time=refslice, area=o.area, roll=roll).mean(dim='time')
 
-                        if o.png_region:
-                            fig1.savefig(v.csv_file.replace('.csv', '-region.png'), dpi=o.dpi)
+                    h = ax1.imshow(map.values[::-1], extent=cube_area(map, extent=True))
+                    cb = plt.colorbar(h, ax=ax1, label=f'{v.units}')
+                    # h = map.plot(ax=ax1, cbar_kwargs={'label':f'{v.units}'}, robust=True)
+                    ax1.set_title(title)
+                    ax1.plot(o.lon, o.lat, 'ko')
 
-                    except:
-                        raise
-                        pass
+                    if cartopy:
+                        ax1.coastlines(resolution='10m')
+
+                    if o.png_region:
+                        fig1.savefig(v.csv_file.replace('.csv', '-region.png'), dpi=o.dpi)
 
 
                 if o.view_timeseries or o.png_timeseries:
