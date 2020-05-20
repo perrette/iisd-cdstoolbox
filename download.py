@@ -175,7 +175,7 @@ class Dataset:
         timeseries = load_csv(fname)
         timeseries = self._transform_units(timeseries)
 
-        return timeseries
+        return timeseries[timeseries.index >= 0]  # only load data after 1979
 
 
     def _extract_map(self, dataarray, time, area=None):
