@@ -512,6 +512,7 @@ def main():
     g.add_argument('--view-timeseries', action='store_true')
     g.add_argument('--png-region', action='store_true')
     g.add_argument('--png-timeseries', action='store_true')
+    g.add_argument('--dpi', default=100, type=int, help='dop-per-inches (default: %(default)s)')
 
 
     o = parser.parse_args()
@@ -582,10 +583,11 @@ def main():
                     historical = CMIP5(vdef2.get('name', name), model, 'historical', '185001-200512', transform=transform, units=vdef['units'], alias=name)
                 else:
                     historical = None
+                labels = {'rcp_8_5': 'RCP 8.5', 'rcp_4_5': 'RCP 4.5', 'rcp_6_0': 'RCP 6', 'rcp_2_6': 'RCP 2.6'}
                 for experiment in o.experiment:
                     cmip5 = CMIP5(vdef2.get('name', name), model, experiment, o.period, transform=transform, units=vdef['units'], alias=name, historical=historical)
                     cmip5.reference = era5
-                    cmip5.simulation_set = f'CMIP5 - {model} - {experiment}'
+                    cmip5.simulation_set = f'CMIP5 - {labels.get(experiment, experiment)} - {model}'
                     cmip5.set_folder = f'cmip5-{model}-{experiment}'
                     variables.append(cmip5)
 
@@ -652,7 +654,7 @@ def main():
                             ax1.coastlines(resolution='10m')
 
                         if o.png_region:
-                            fig1.savefig(v.csv_file.replace('.csv', '-region.png'))
+                            fig1.savefig(v.csv_file.replace('.csv', '-region.png'), dpi=o.dpi)
 
                     except:
                         raise
@@ -670,7 +672,7 @@ def main():
                     ax2.set_title(name)
 
                     if o.png_timeseries:
-                        fig2.savefig(v.csv_file.replace('.csv', '.png'))
+                        fig2.savefig(v.csv_file.replace('.csv', '.png'), dpi=o.dpi)
 
             # all simulation sets on one figure
             if o.view_timeseries or o.png_timeseries:
@@ -678,12 +680,20 @@ def main():
                 ax2.clear()
                 for v in variables:
                     ts = load_csv(v.csv_file)
-                    # convert units for easier reading of graphs
                     ts.index = convert_time_units_series(ts.index, years=True)
-                    ts.plot(ax=ax2, label=v.simulation_set)
-                ax2.legend()
+                    if isinstance(v, ERA5):
+                        color = 'k'
+                        zorder = 5
+                    else:
+                        color = None
+                        zorder = None
+                    l, = ax2.plot(ts.index, ts.values, alpha=0.5, label=v.simulation_set, linewidth=1, color=color, zorder=zorder)
+
+                ax2.legend(fontsize='xx-small')
                 ax2.set_ylabel(v.units)
+                ax2.set_xlabel(ts.index.name)
                 ax2.set_title(name)
+                # ax2.set_xlim(xmin=start_year, xmax=2100)
 
                 mi, ma = ax2.get_xlim()
                 if mi < 0:
@@ -691,7 +701,7 @@ def main():
 
                 if o.png_timeseries:
                     figname = os.path.join(o.output, loc_folder, asset_folder, 'all_'+name+'.png')
-                    fig2.savefig(figname)
+                    fig2.savefig(figname, dpi=max(o.dpi, 300))
 
     if o.view_timeseries or o.view_region:
         plt.show()
