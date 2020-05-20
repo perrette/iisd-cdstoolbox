@@ -673,17 +673,17 @@ def main():
                     if isinstance(v, ERA5):
                         y1, y2 = o.reference_period
                         roll = False
-                        title = f'{name} (ERA5): {y1}-{y2}'
+                        title = f'ERA5: {y1}-{y2}'
                     else:
                         y1, y2 = 2071, 2100
                         roll=True if o.area[1] < 0 else False
-                        title = f'{name} ({labels.get(v.experiment, v.experiment)}): {y1}-{y2}'
+                        title = f'{labels.get(v.experiment, v.experiment)} ({v.model}): {y1}-{y2}'
 
                     refslice = slice(str(y1), str(y2))
                     map = v.load_cube(time=refslice, area=o.area, roll=roll).mean(dim='time')
 
                     h = ax1.imshow(map.values[::-1], extent=cube_area(map, extent=True))
-                    cb = plt.colorbar(h, ax=ax1, label=f'{v.units}')
+                    cb = plt.colorbar(h, ax=ax1, label=f'{name} ({v.units})')
                     # h = map.plot(ax=ax1, cbar_kwargs={'label':f'{v.units}'}, robust=True)
                     ax1.set_title(title)
                     ax1.plot(o.lon, o.lat, 'ko')
