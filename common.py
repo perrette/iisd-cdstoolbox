@@ -127,7 +127,7 @@ class Dataset:
         return name
 
     def download(self):
-        c = cdsapi.Client()
+        c = cdsapi.Client(timeout=60*5)
 
         os.makedirs(self.folder, exist_ok=True)
 
