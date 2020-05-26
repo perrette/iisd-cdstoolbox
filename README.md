@@ -165,6 +165,24 @@ For complex expressions, it is possible to provide a `mapping` field to store in
 
 where `T` and `TD` are provided as intermediary variables, to be used in `expression`.
 
+Monthly variables can be aggregated from higher-frequency datasets:
+
+	- name: maximum_daily_temperature
+	  units: degrees Celsius
+	  offset: -273.15
+	  cmip5:
+	    name: maximum_2m_temperature_in_the_last_24_hours
+	  era5:
+	    name: 2m_temperature
+	    frequency: hourly
+	    transform: 
+	      - daily_max
+	      - monthly_mean
+
+This variable is available directly for CMIP5, but not in ERA5. It is calculated from `2m_temperature` from ERA5 `hourly` dataset, and subsequently aggregated.
+Transformations `daily_max`, `daily_min`, `daily_mean`, `monthly_mean`, `yearly_mean` are defined.
+
+
 ## netcdf to csv
 
 Convert netcdf timeseries files downloaded from the CDS Toolbox pages into csv files (note : this does not work for netcdf files downloaded via the cds api):
