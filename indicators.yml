@@ -49,3 +49,13 @@
     name: mean_surface_downward_short_wave_radiation_flux
   cmip5:
     name: surface_solar_radiation_downwards
+- name: relative_humidity
+  units: '%'
+  era5:
+    compose:
+      - 2m_temperature
+      - 2m_dewpoint_temperature
+    expression: 100*(exp((17.625*TD)/(243.04+TD))/exp((17.625*T)/(243.04+T)))
+    mapping: {T: _2m_temperature - 273.15, TD: _2m_dewpoint_temperature - 273.15}
+  cmip5:
+    name: near_surface_relative_humidity

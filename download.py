@@ -36,14 +36,24 @@ class Transform:
 class ComposeIndicator(Indicator):
     """an indicator defined via "compose" and "expression fields"
     """
-    def __init__(self, name, units, description, datasets, expression, **kwargs):
+    def __init__(self, name, units, description, datasets, expression, mapping=None, **kwargs):
         self.expression = expression
+        self.mapping = mapping or {}
         super().__init__(name, units, description, datasets, self._compose, **kwargs)
 
     def _compose(self, *values):
         """evaluate expression (prefix leading digits with _)
         """
         kwargs = {'_'+dataset.variable if dataset.variable.startswith(tuple(str(i) for i in range(10))) else dataset.variable: value for dataset, value in zip(self.datasets, values)}
+        # add numpy function (exp etc...)
+        kwargs.update(vars(np))
+        # add indicators ?
+        # import indicator
+        # kwargs.update(vars(indicator))
+        # allow aliases
+        for short, expression in self.mapping.items():
+            assert short not in kwargs, f'{short} already exists, cannot be used as alias (mapping)'
+            kwargs[short] = eval(expression, kwargs)
         return eval(self.expression, kwargs)
 
 
@@ -66,7 +76,7 @@ def parse_indicator(cls, name, units=None, description=None, scale=1, offset=0, 
             defs.update({'name': name2})
             dataset = parse_dataset(cls, name, scale, offset, defs, cls_kwargs)
             datasets.append(dataset)
-        return ComposeIndicator(name, units, description, datasets=datasets, expression=defs['expression'])
+        return ComposeIndicator(name, units, description, datasets=datasets, expression=defs['expression'], mapping=defs.get('mapping'))
 
     dataset = parse_dataset(cls, name, scale, offset, defs, cls_kwargs)
     return Indicator(name, units, description, datasets=[dataset])
