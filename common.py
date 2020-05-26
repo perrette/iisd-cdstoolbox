@@ -289,7 +289,7 @@ class Dataset:
         if self.transform:
             try:
                 cube = self.transform(cube)
-            except error:
+            except Exception as error:
                 logging.warning(f'{type(self)}, {self.variable}: transform failed: {error}. Skip.')
 
         if self.units:

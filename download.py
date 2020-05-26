@@ -16,7 +16,7 @@ import cdsapi
 from common import (ERA5, CMIP5, Indicator,
     correct_yearly_bias, correct_monthly_bias, convert_time_units_series, 
     daily_min, daily_max, daily_mean, monthly_mean, yearly_mean,
-    save_csv, load_csv, era5_tile_area, make_area)
+    save_csv, load_csv, era5_tile_area, make_area, cube_area)
 
 from cmip5 import get_models_per_asset, get_models_per_indicator, get_all_models, cmip5 as cmip5_def
 
@@ -290,6 +290,7 @@ def main():
                 kwargs = {}
 
             for v in variables:
+                v0 = v.datasets[0]
                 if figures_created and not (o.view_region or o.view_timeseries):
                     # reuse same figure (speed up)
                     pass
@@ -314,7 +315,7 @@ def main():
                     else:
                         y1, y2 = 2071, 2100
                         roll=True if o.area[1] < 0 else False
-                        title = f'{labels.get(v.experiment, v.experiment)} ({v.model}): {y1}-{y2}'
+                        title = f'{labels.get(v0.experiment, v0.experiment)} ({v0.model}): {y1}-{y2}'
 
                     refslice = slice(str(y1), str(y2))
                     map = v.load_cube(time=refslice, area=o.area, roll=roll).mean(dim='time')
