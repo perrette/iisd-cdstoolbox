@@ -66,3 +66,23 @@
     mapping: {T: _2m_temperature - 273.15, TD: _2m_dewpoint_temperature - 273.15}
   cmip5:
     name: near_surface_relative_humidity
+
+- name: minimum_daily_temperature
+  units: degrees Celsius
+  offset: -273.15
+  cmip5:
+    name: minimum_2m_temperature_in_the_last_24_hours
+  era5:
+    name: 2m_temperature
+    frequency: hourly
+    aggregate: min
+
+- name: maximum_daily_temperature
+  units: degrees Celsius
+  offset: -273.15
+  cmip5:
+    name: maximum_2m_temperature_in_the_last_24_hours
+  era5:
+    name: 2m_temperature
+    frequency: hourly
+    aggregate: max

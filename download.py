@@ -15,7 +15,7 @@ import cdsapi
 
 from common import (ERA5, CMIP5, Indicator,
     correct_yearly_bias, correct_monthly_bias, convert_time_units_series,
-    save_csv, load_csv)
+    save_csv, load_csv, era5_tile_area, make_area)
 
 from cmip5 import get_models_per_asset, get_models_per_indicator, get_all_models, cmip5 as cmip5_def
 
@@ -61,7 +61,9 @@ def parse_dataset(cls, name, scale=1, offset=0, defs={}, cls_kwargs={}):
     vdef = {'name': name, 'scale': scale, 'offset': offset}
     vdef.update(defs) # update with dataset-specific values
     transform = Transform(vdef.get('scale', 1), vdef.get('offset', 0))
-    return cls(vdef['name'], transform=transform, **cls_kwargs)
+    if 'frequency' in defs:
+        assert 'aggregate' in defs, f'{name}: "aggregate" must be provided whenever "frequency" is used: min, max, mean... (numpy functions)'
+    return cls(vdef['name'], transform=transform, frequency=defs.get('frequency'), aggregate=defs.get('aggregate'), **cls_kwargs)
 
 
 def parse_indicator(cls, name, units=None, description=None, scale=1, offset=0, defs={}, cls_kwargs={}):

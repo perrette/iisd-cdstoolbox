@@ -32,6 +32,38 @@ def convert_time_units_series(index, years=False):
     return index
 
 
+def aggregate_time(timeseries, func, frequency=None):
+    """aggregate timeseries from hourly (or daily) to monthly
+    """
+    if frequency is None:
+        frequency = 'monthly'
+
+    if frequency not in ['monthly']:
+        raise NotImplementedError(frequency)
+    
+    print('aggregate', timeseries.name, 'to', frequency, 'frequency by',func)
+
+    if type(func) is str:
+        try:
+            func = getattr(np, func)
+        except:
+            raise f'Unknown aggregation function: {func}'
+
+    dates = nc.num2date(timeseries.index.values, timeseries.index.name)
+    date_val = zip(dates, timeseries.values)
+    date_val2 = []
+    for month, group in itertools.groupby(date_val, key=lambda x: x[0].month):
+        dates, values = zip(*group)
+        val = func(values)
+        d0 = dates[len(dates)//2] # take middle date
+        date_val2.append([d0, val])
+
+    dates2, values2 = zip(*date_val2)
+    index = pd.Index(nc.date2num(dates2, timeseries.index.name))
+    index.name = timeseries.index.name
+    return pd.Series(values2, index=index)
+
+
 class Indicator:
     """A class to compose CDS datasets into one custom Indicator (e.g. u and v components of wind into wind magnitude)
     """
@@ -69,12 +101,15 @@ class Indicator:
 
 class Dataset:
     
-    def __init__(self, dataset, params, downloaded_file, transform=None, units=None):
+    def __init__(self, dataset, params, downloaded_file, transform=None, units=None, frequency=None, aggregate=None, aggregate_frequency=None):
         self.dataset = dataset
         self.params = params
         self.downloaded_file = downloaded_file
         self.transform = transform
         self.units = units
+        self.frequency = frequency
+        self.aggregate = aggregate
+        self.aggregate_frequency = aggregate_frequency
 
     def __getattr__(self, name):
         if name in self.params:
@@ -207,6 +242,9 @@ class Dataset:
 
         timeseries = load_csv(fname)
         timeseries = self._transform_units(timeseries)
+
+        if self.aggregate:
+            timeseries = aggregate_time(timeseries, self.aggregate, self.aggregate_frequency)
 
         return timeseries[timeseries.index >= 0]  # only load data after 1979
 
@@ -345,7 +383,7 @@ class ERA5(Dataset):
     lon = 'longitude'
     lat = 'latitude'
 
-    def __init__(self, variable, year=None, area=None, tiled=False, **kwargs):
+    def __init__(self, variable, year=None, area=None, tiled=False, frequency=None, split_year=None, **kwargs):
         """
         tiled: experimental parameter to split the downloaded data into tiles, for easier re-reuse
         """
@@ -355,30 +393,55 @@ class ERA5(Dataset):
             area = np.array(area).tolist() # be sure it is json serializable
         if year is None:
             year = list(range(1979, 2019+1))  # multiple year OK
-        dataset = 'reanalysis-era5-single-levels-monthly-means'
-        product_type = 'monthly_averaged_reanalysis'
+
+        if frequency is None:
+            frequency = 'monthly'
+
+        if frequency == 'hourly':
+            dataset = 'reanalysis-era5-single-levels'
+            product_type = 'reanalysis'
+            split_year = True if split_year is not False else False # otherwise item limit is exceeded
+        elif frequency == 'monthly':
+            dataset = 'reanalysis-era5-single-levels-monthly-means'
+            product_type = 'monthly_averaged_reanalysis'
+        else:
+            raise ValueError(f'expected monthly or hourly frequency, got: {frequency}')
+        
+        self.frequency = frequency
+
         folder = os.path.join('download', dataset, product_type)
         year0, yearf = year[0], year[-1]
         name = f'{variable}_{year0}-{yearf}_{area[0]}-{area[1]}-{area[2]}-{area[3]}'
         downloaded_file = os.path.join(folder, name+'.nc')
-        self.tiled = tiled
-        if self.tiled:
-            self.tiles = [ERA5(variable, year, subarea, tiled=False, **kwargs) for subarea in tiled_area(area)]
 
-        super().__init__(dataset, {
-                'format': 'netcdf',
-                'product_type': product_type,
-                'variable': variable,
-                'year': year,
-                'month': list(range(1, 12+1)),
-                'time': '00:00',
-                'area': area,
-            }, downloaded_file, **kwargs)
+        self.sub_requests = []
+
+        if split_year:
+            self.sub_requests = [ERA5(variable, [y], area, tiled=tiled, frequency=frequency, split_year=False, **kwargs) for y in year]
+
+        elif tiled:
+            self.sub_requests = [ERA5(variable, year, subarea, tiled=False, frequency=frequency, split_year=False, **kwargs) for subarea in tiled_area(area)]
+
+        params = {
+            'format': 'netcdf',
+            'product_type': product_type,
+            'variable': variable,
+            'year': year,
+            'month': list(range(1, 12+1)),
+            'time': '00:00',
+            'area': area,
+        }
+
+        if frequency == 'hourly':
+            params['day'] = list(range(1, 31+1))
+            params['time'] = list(range(0, 23+1))
+
+        super().__init__(dataset, params, downloaded_file, **kwargs)
 
     def get_ncfiles(self):
-        if self.tiled:
+        if self.sub_requests:
             ncfiles = []
-            for v in self.tiles:
+            for v in self.sub_requests:
                 ncfiles.extend(v.get_ncfiles())
             return ncfiles
 
@@ -386,7 +449,8 @@ class ERA5(Dataset):
             self.download()
         return [self.downloaded_file]
 
-
+# class ERA5hourly(ERA5):
+#     pass
 
 def make_area(lon, lat, w):
     " return `area` keyword top left bottom right for lon/lat and width_km"
