@@ -14,23 +14,15 @@ import datetime
 import cdsapi
 
 from common import (ERA5, CMIP5, Indicator,
-    correct_yearly_bias, correct_monthly_bias, convert_time_units_series, 
-    daily_min, daily_max, daily_mean, monthly_mean, yearly_mean, threshold_negative, threshold_positive, monthly_count,
+    correct_yearly_bias, correct_monthly_bias, convert_time_units_series,
     save_csv, load_csv, era5_tile_area, make_area, cube_area)
+
+import transform
 
 from cmip5 import get_models_per_asset, get_models_per_indicator, get_all_models, cmip5 as cmip5_def
 
-transform_namespace = {
-    'daily_min': daily_min, 
-    'daily_max': daily_max, 
-    'daily_mean': daily_mean, 
-    'monthly_mean': monthly_mean, 
-    'yearly_mean': yearly_mean,
-    'threshold_positive': threshold_positive,
-    'threshold_negative': threshold_negative,
-    'threshold_negative': threshold_negative,
-    'monthly_count': monthly_count,
-}
+transform_namespace = { name: getattr(transform, name) for name in transform.__all__ }
+
 
 class Transform:
     def __init__(self, scale=1, offset=0, transform=None):
@@ -88,12 +80,10 @@ def parse_dataset(cls, name, scale=1, offset=0, defs={}, cls_kwargs={}):
 
     transforms = [ Transform(vdef.get('scale', 1), vdef.get('offset', 0)) ]
     if 'transform' in defs:
-        print(defs['transform'])
         if type(defs['transform']) is str:
             transforms.append(Transform(transform=defs['transform']))
         else:
             for transform in defs['transform']:
-                print(transform)
                 transforms.append(Transform(transform=transform))
 
     transform = SequentialTransform(transforms)
