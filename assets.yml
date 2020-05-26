@@ -6,8 +6,7 @@ energy:
 - surface_solar_radiation
 - 10m_wind_speed
 - 100m_wind_speed
-# - 100m_u_component_of_wind
-# - 100m_v_component_of_wind
+- relative_humidity
 
 nature:
 - 2m_temperature
@@ -19,6 +18,7 @@ irrigation:
 - runoff
 - evaporation
 - 10m_wind_speed
+- relative_humidity
 
 wastewater:
 - 2m_temperature
