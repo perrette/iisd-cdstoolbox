@@ -341,13 +341,30 @@ class CMIP5(Dataset):
     lon = 'lon'
     lat = 'lat'
 
-    def __init__(self, variable, model, experiment, period, ensemble=None, historical=None, **kwargs):
+    def __init__(self, variable, model, experiment, period=None, ensemble=None, historical=None, frequency=None, **kwargs):
         if ensemble is None:
             ensemble = 'r1i1p1'
 
-        dataset = 'projections-cmip5-monthly-single-levels'
+        if frequency is None:
+            frequency = 'monthly'
+        self.frequency = frequency
+
+        if frequency == 'daily':
+            from cmip5 import get_daily_periods
+            dataset = 'projections-cmip5-daily-single-levels'
+            if period is None:
+                period = get_daily_periods(model, experiment)
+        else:
+            dataset = 'projections-cmip5-monthly-single-levels'
+            if period is None:
+                period = ['185001-200512'] if experiment == 'historical' else ['200601-210012']
+
+        if type(period) is str: 
+            period = [period]
+        periodstamp = period[0].split('-')[0] + '-' + period[-1].split('-')[-1]
+
         folder = os.path.join('download', dataset)
-        name = f'{variable}-{model}-{experiment}-{period}-{ensemble}'
+        name = f'{variable}-{model}-{experiment}-{periodstamp}-{ensemble}'
         
         downloaded_file = os.path.join(folder, name+'.zip')
 

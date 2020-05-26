@@ -153,7 +153,7 @@ def main():
     g = parser.add_argument_group('CMIP5 control')
     g.add_argument('--model', nargs='*', default=['ipsl_cm5a_mr'], choices=get_all_models())
     g.add_argument('--experiment', nargs='*', choices=['rcp_2_6', 'rcp_4_5', 'rcp_6_0', 'rcp_8_5'], default=['rcp_8_5'])
-    g.add_argument('--period', default='200601-210012', help=argparse.SUPPRESS) # all CMIP5 models and future experiements share the same parameter...
+    g.add_argument('--period', default=None, help=argparse.SUPPRESS) # all CMIP5 models and future experiements share the same parameter...
     # g.add_argument('--historical', action='store_true', help='this flag provokes downloading historical data as well and extend back the CMIP5 timeseries to 1979')
     g.add_argument('--historical', action='store_true', default=True, help=argparse.SUPPRESS)
     g.add_argument('--no-historical', action='store_false', dest='historical', help=argparse.SUPPRESS)
@@ -243,7 +243,7 @@ def main():
             for model in o.model:
                 labels = {'rcp_8_5': 'RCP 8.5', 'rcp_4_5': 'RCP 4.5', 'rcp_6_0': 'RCP 6', 'rcp_2_6': 'RCP 2.6'}
                 if o.historical:
-                    historical_kwargs = dict(model=model, experiment='historical', period='185001-200512')
+                    historical_kwargs = dict(model=model, experiment='historical', period=None)
                     historical = parse_indicator(CMIP5, defs=vdef2, cls_kwargs=historical_kwargs, **indicator_def)
                 else:
                     historical = None

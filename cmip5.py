@@ -1,6 +1,7 @@
 import yaml
 import json
 import os
+import datetime
 from common import CMIP5
 
 indicators = yaml.safe_load(open('indicators.yml'))
@@ -91,6 +92,35 @@ def get_models_per_asset(asset, experiment=None, verbose=True):
             print('  ', ' '.join(sorted(indicator_models)))
 
     return models
+
+
+ 
+daily_periods = {
+    'ipsl_cm5a_mr': ['19500101-19991231', '20000101-20051231', '20060101-20551231', '20560101-21001231'],
+    'mpi_esm_mr': ['19700101-19791231', '19800101-19891231', '19900101-19991231', '20000101-20051231',
+            '20060101-20091231', '20100101-20191231', '20200101-20291231',
+            '20300101-20391231', '20400101-20491231', '20500101-20591231',
+            '20600101-20691231', '20700101-20791231', '20800101-20891231',
+            '20900101-21001231'], 
+    'bnu_esm': ['19500101-20051231', '20060101-21001231'],
+    'csiro_mk3_6_0': ['19700101-19891231', '19900101-20051231', '20060101-20251231', '20260101-20451231', '20460101-20651231',
+             '20660101-20851231', '20860101-21001231'],
+}
+
+def _init_date(string):
+    y, m, d = string[:4], string[4:6], string[6:]
+    return datetime.date(int(y), int(m), int(d))
+
+def get_daily_periods(model, scenario):
+    """get list of valid period parameter for one model, scenario for daily frequency """
+    periods = []
+    for period in daily_periods[model]:
+        date1, date2 = (_init_date(date) for date in period.split('-'))
+        if scenario == 'historical' and date2 < datetime.date(2006,1,1):
+            periods.append(period)
+        if scenario.startswith('rcp') and date1 >= datetime.date(2006,1,1):
+            periods.append(period)
+    return periods
 
 if __name__ == '__main__':
     import argparse
