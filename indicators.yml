@@ -2,6 +2,7 @@
   units: degrees Celsius
   description: 2-m air temperature
   offset: -273.15  # Kelvin to degrees C
+
 - name: precipitation
   units: mm per month
   description: Total precipitation (including snow)
@@ -10,6 +11,7 @@
     name: mean_total_precipitation_rate
   cmip5:
     name: mean_precipitation_flux
+
 - name: runoff
   units: mm per month
   description: Runoff
@@ -18,6 +20,7 @@
     name: mean_runoff_rate
   cmip5:
     name: runoff
+
 - name: evaporation
   units: mm per month
   description: Evaporation
@@ -27,9 +30,11 @@
   cmip5:
     name: evaporation
     scale: 2592000  # mm/s to mm / month
+
 - name: 10m_wind_speed
   units: m / s
   description: Wind speed magnitude at 10 m
+
 - name: 100m_wind_speed
   units: m / s
   description: Wind speed magnitude at 100 m
@@ -41,6 +46,7 @@
   cmip5:
     name: 10m_wind_speed
     scale: 1.6  # average scaling from 10m to 100m, based on one test location (approximate!)
+
 - name: surface_solar_radiation
   units: W / m^2
   description: Solar radiation at the surface (accounts for shadowing from clouds
@@ -49,6 +55,7 @@
     name: mean_surface_downward_short_wave_radiation_flux
   cmip5:
     name: surface_solar_radiation_downwards
+
 - name: relative_humidity
   units: '%'
   era5:
