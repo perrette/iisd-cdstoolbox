@@ -73,7 +73,8 @@ def monthly_mean(timeseries):
 def yearly_mean(timeseries):
     return _aggregate_timeseries(timeseries, np.mean, 'year')
 
-
+def frost_days_per_month(timeseries):
+    return _aggregate_timeseries(timeseries, lambda t: np.sum(np.array(t) < 0), 'month')
 
 
 class Indicator:

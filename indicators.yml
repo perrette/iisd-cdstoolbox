@@ -90,3 +90,18 @@
     transform: 
       - daily_max
       - monthly_mean
+
+- name: frost_days
+  units: monthly
+  cmip5:
+    name: minimum_2m_temperature_in_the_last_24_hours
+    frequency: daily
+    offset: -273.15
+    transform: frost_days_per_month
+  era5:
+    name: 2m_temperature
+    frequency: hourly
+    offset: -273.15
+    transform:
+      - daily_min
+      - frost_days_per_month
