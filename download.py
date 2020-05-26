@@ -130,9 +130,10 @@ def main():
 
         vdef2 = vdef.get('era5',{})
         transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
-        era5 = ERA5(vdef2.get('name', name), area=o.area, transform=transform, year=o.year, units=vdef['units'], tiled=o.tiled, alias=name)
+        era5 = ERA5(vdef2.get('name', name), area=o.area, transform=transform, year=o.year, units=vdef['units'], tiled=o.tiled)
         era5.simulation_set = 'ERA5'
         era5.set_folder = 'era5'
+        era5.alias = name
 
         if not o.dataset or o.dataset == 'era5' or o.bias_correction:
             variables.append(era5)
@@ -143,15 +144,17 @@ def main():
         if not o.dataset or o.dataset == 'cmip5':
             for model in o.model:
                 if o.historical:
-                    historical = CMIP5(vdef2.get('name', name), model, 'historical', '185001-200512', transform=transform, units=vdef['units'], alias=name)
+                    historical = CMIP5(vdef2.get('name', name), model, 'historical', '185001-200512', transform=transform, units=vdef['units'])
+                    historical.alias = name
                 else:
                     historical = None
                 labels = {'rcp_8_5': 'RCP 8.5', 'rcp_4_5': 'RCP 4.5', 'rcp_6_0': 'RCP 6', 'rcp_2_6': 'RCP 2.6'}
                 for experiment in o.experiment:
-                    cmip5 = CMIP5(vdef2.get('name', name), model, experiment, o.period, transform=transform, units=vdef['units'], alias=name, historical=historical)
+                    cmip5 = CMIP5(vdef2.get('name', name), model, experiment, o.period, transform=transform, units=vdef['units'], historical=historical)
                     cmip5.reference = era5
                     cmip5.simulation_set = f'CMIP5 - {labels.get(experiment, experiment)} - {model}'
                     cmip5.set_folder = f'cmip5-{model}-{experiment}'
+                    cmip5.alias = name
                     variables.append(cmip5)
 
 

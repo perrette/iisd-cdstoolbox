@@ -34,14 +34,12 @@ def convert_time_units_series(index, years=False):
 
 class Dataset:
     
-    def __init__(self, dataset, params, downloaded_file, transform=None, alias=None, units=None, dataset_alias=None):
+    def __init__(self, dataset, params, downloaded_file, transform=None, units=None):
         self.dataset = dataset
         self.params = params
         self.downloaded_file = downloaded_file
         self.transform = transform
         self.units = units
-        self.alias = alias
-        self.dataset_alias = dataset_alias
 
     def __getattr__(self, name):
         if name in self.params:
