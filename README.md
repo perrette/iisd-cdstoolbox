@@ -97,7 +97,8 @@ It is based on trial and error on a list of all models defined in [cmip5.yml](cm
 
 ### Indicator definition
 
-See [indicators.yml](indicators.yml) for the current indicators.
+This section is intended for users who wish to extend the list of indicators currently defined in [indicators.yml](indicators.yml).
+It can be safely ignored for users who are only interested in using the existing indicators.
 
 Let's see how `10m_wind_speed` is defined:
 
@@ -149,6 +150,20 @@ In ERA5, vector components of 100m wind speed are provided.
 Our indicator is therefore a composition of these two variables, defined by the `expression` field, which is evaluated as a python expression.
 Note that variables that start with a digit are not licit in python and must be prefixed with an underscore `_` in the `expression` field (only there).
 
+For complex expressions, it is possible to provide a `mapping` field to store intermediate variables, for readability. This is used for the `relative_humidity` indicator:
+
+	- name: relative_humidity
+	  units: '%'
+	  era5:
+	    compose:
+	      - 2m_temperature
+	      - 2m_dewpoint_temperature
+	    expression: 100*(exp((17.625*TD)/(243.04+TD))/exp((17.625*T)/(243.04+T)))
+	    mapping: {T: _2m_temperature - 273.15, TD: _2m_dewpoint_temperature - 273.15}
+	  cmip5:
+	    name: near_surface_relative_humidity
+
+where `T` and `TD` are provided as intermediary variables, to be used in `expression`.
 
 ## netcdf to csv
 
