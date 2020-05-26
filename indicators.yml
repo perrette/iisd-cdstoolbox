@@ -97,11 +97,14 @@
     name: minimum_2m_temperature_in_the_last_24_hours
     frequency: daily
     offset: -273.15
-    transform: frost_days_per_month
+    transform: 
+      - threshold_negative
+      - monthly_count
   era5:
     name: 2m_temperature
     frequency: hourly
     offset: -273.15
     transform:
       - daily_min
-      - frost_days_per_month
+      - threshold_negative
+      - monthly_count

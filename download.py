@@ -15,7 +15,7 @@ import cdsapi
 
 from common import (ERA5, CMIP5, Indicator,
     correct_yearly_bias, correct_monthly_bias, convert_time_units_series, 
-    daily_min, daily_max, daily_mean, monthly_mean, yearly_mean, frost_days_per_month,
+    daily_min, daily_max, daily_mean, monthly_mean, yearly_mean, threshold_negative, threshold_positive, monthly_count,
     save_csv, load_csv, era5_tile_area, make_area, cube_area)
 
 from cmip5 import get_models_per_asset, get_models_per_indicator, get_all_models, cmip5 as cmip5_def
@@ -26,7 +26,10 @@ transform_namespace = {
     'daily_mean': daily_mean, 
     'monthly_mean': monthly_mean, 
     'yearly_mean': yearly_mean,
-    'frost_days_per_month': frost_days_per_month,
+    'threshold_positive': threshold_positive,
+    'threshold_negative': threshold_negative,
+    'threshold_negative': threshold_negative,
+    'monthly_count': monthly_count,
 }
 
 class Transform:
