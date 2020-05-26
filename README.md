@@ -65,8 +65,13 @@ Additionally to the files shown in the example folder listing above, figures can
 
 	python download.py --asset energy --location Welkenraedt --png-timeseries --png-region
 
-Additional controls are provided in configuration files:
-- controls which indicators are available, how they are renamed and unit-adjusted: [indicators.yml](indicators.yml)
+Single indicators can be downloaded via:
+
+	python download.py --indicator 2m_temperature --location Welkenraedt
+
+The choices available for `--indicator` , `--asset` and `--location` area defined in the following configuration files, respectively:
+
+- controls which indicators are available, how they are renamed and unit-adjusted: [indicators.yml](indicators.yml) (see [sub-section](#indicator-definition) below)
 - controls the indicator list in each asset class: [assets.yml](assets.yml)
 - controls the list of locations available: [locations.yml](locations.yml)
 
@@ -80,6 +85,7 @@ Visit the CDS Datasets download pages, for more information about available vari
 - CMIP5: `https://cds.climate.copernicus.eu/cdsapp#!/dataset/projections-cmip5-monthly-single-levels?tab=form`
 In particular, clicking on "Show API request" provides information about spelling of the parameters, e.g. that "2m temperature" is spelled `2m_temperature` and "RCP 8.5" is spelled `rcp_8_5`.
 
+
 *Experimental*
 
 A list of models that provides for all indicators within one asset class can be obtained via:
@@ -87,6 +93,61 @@ A list of models that provides for all indicators within one asset class can be 
 	python cmip5.py --asset energy
 
 It is based on trial and error on a list of all models defined in [cmip5.yml](cmip5.yml), and then saved to [cmip5_listing.json](cmip5_listing.json).
+
+
+### Indicator definition
+
+See [indicators.yml](indicators.yml) for the current indicators.
+
+Let's see how `10m_wind_speed` is defined:
+
+	- name: 10m_wind_speed
+	  units: m / s
+	  description: Wind speed magnitude at 10 m
+
+The fields `name` and `units` define the indicator. Description is optional, just to provide some context.
+It is possible to provide `scale` and `offset` fieds to correct the data as `(data + offset) * scale`.
+Here for `2m temperature`:
+
+	- name: 2m_temperature
+	  units: degrees Celsius
+	  description: 2-m air temperature
+      offset: -273.15  # Kelvin to degrees C
+
+`#` denotes a comment to provide some context. 
+Some indicators have different names in ERA5 and CMIP5, and possibly different units. 
+That can be dealt with by providing `era5` and `cmip5` fields, which have precedence over the top-level fields. 
+Here the `evaporation` definition:
+
+	- name: evaporation
+	  units: mm per month
+	  era5:
+	    name: mean_evaporation_rate  # different name in ERA5
+	    scale: -2592000  # change sign and convert from mm/s to mm / month
+	  cmip5:
+	    scale: 2592000  # mm/s to mm / month
+
+In that case both scaling and name depend on the dataset. In CMIP5 which variable name is identical to our indicator name, the `name` field can be omitted.
+In ERA5, evaporation is negative (downwards fluxes are counted positively), whereas it is counted positively in ERA5.
+
+Indicators composed of several CDS variables can be defined via `compose` and `expression` fields.
+Let's look at `100m_wind_speed`:
+
+	- name: 100m_wind_speed
+	  units: m / s
+	  description: Wind speed magnitude at 100 m
+	  era5:
+	    compose:
+	      - 100m_u_component_of_wind
+	      - 100m_v_component_of_wind
+	    expression: (_100m_u_component_of_wind**2 + _100m_v_component_of_wind**2)**0.5
+	  cmip5:
+	    name: 10m_wind_speed
+	    scale: 1.6  # average scaling from 10m to 100m, based on one test location (approximate!)
+
+In ERA5, vector components of 100m wind speed are provided. 
+Our indicator is therefore a composition of these two variables, defined by the `expression` field, which is evaluated as a python expression.
+Note that variables that start with a digit are not licit in python and must be prefixed with an underscore `_` in the `expression` field (only there).
 
 
 ## netcdf to csv
