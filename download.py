@@ -14,24 +14,45 @@ import datetime
 import cdsapi
 
 from common import (ERA5, CMIP5, Indicator,
-    correct_yearly_bias, correct_monthly_bias, convert_time_units_series,
+    correct_yearly_bias, correct_monthly_bias, convert_time_units_series, 
+    daily_min, daily_max, daily_mean, monthly_mean, yearly_mean,
     save_csv, load_csv, era5_tile_area, make_area)
 
 from cmip5 import get_models_per_asset, get_models_per_indicator, get_all_models, cmip5 as cmip5_def
 
+transform_namespace = {
+    'daily_min': daily_min, 
+    'daily_max': daily_max, 
+    'daily_mean': daily_mean, 
+    'monthly_mean': monthly_mean, 
+    'yearly_mean': yearly_mean,
+}
 
 class Transform:
     def __init__(self, scale=1, offset=0, transform=None):
         self.scale = scale
         self.offset = offset
+        if type(transform) is str:
+            if transform not in transform_namespace:
+                raise ValueError(f'{transform}. Valid transforms are: {", ".join(transform_namespace)}')
+            transform = transform_namespace[transform]  # evaluate daily_min, etc..
         self.transform = transform
 
     def __call__(self, data):
-        data2 = (data + self.offset)*self.scale
+        result = (data + self.offset)*self.scale
         if self.transform:
-            data2 = self.transform(data2)
-        return data2
+            result = self.transform(result)
+        return result
 
+
+class SequentialTransform:
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, data):
+        for f in self.transforms:
+            data = f(data)
+        return data
 
 class ComposeIndicator(Indicator):
     """an indicator defined via "compose" and "expression fields"
@@ -60,10 +81,20 @@ class ComposeIndicator(Indicator):
 def parse_dataset(cls, name, scale=1, offset=0, defs={}, cls_kwargs={}):
     vdef = {'name': name, 'scale': scale, 'offset': offset}
     vdef.update(defs) # update with dataset-specific values
-    transform = Transform(vdef.get('scale', 1), vdef.get('offset', 0))
-    if 'frequency' in defs:
-        assert 'aggregate' in defs, f'{name}: "aggregate" must be provided whenever "frequency" is used: min, max, mean... (numpy functions)'
-    return cls(vdef['name'], transform=transform, frequency=defs.get('frequency'), aggregate=defs.get('aggregate'), **cls_kwargs)
+
+    transforms = [ Transform(vdef.get('scale', 1), vdef.get('offset', 0)) ]
+    if 'transform' in defs:
+        print(defs['transform'])
+        if type(defs['transform']) is str:
+            transforms.append(Transform(transform=defs['transform']))
+        else:
+            for transform in defs['transform']:
+                print(transform)
+                transforms.append(Transform(transform=transform))
+
+    transform = SequentialTransform(transforms)
+
+    return cls(vdef['name'], transform=transform, frequency=defs.get('frequency'), **cls_kwargs)
 
 
 def parse_indicator(cls, name, units=None, description=None, scale=1, offset=0, defs={}, cls_kwargs={}):

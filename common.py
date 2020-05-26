@@ -32,36 +32,48 @@ def convert_time_units_series(index, years=False):
     return index
 
 
-def aggregate_time(timeseries, func, frequency=None):
-    """aggregate timeseries from hourly (or daily) to monthly
-    """
-    if frequency is None:
-        frequency = 'monthly'
+def aggregate_datetime(dates, values, func, field):
+    " field is a date(time) field"
+    date_val = zip(dates, values)
 
-    if frequency not in ['monthly']:
-        raise NotImplementedError(frequency)
-    
-    print('aggregate', timeseries.name, 'to', frequency, 'frequency by',func)
-
-    if type(func) is str:
-        try:
-            func = getattr(np, func)
-        except:
-            raise f'Unknown aggregation function: {func}'
-
-    dates = nc.num2date(timeseries.index.values, timeseries.index.name)
-    date_val = zip(dates, timeseries.values)
     date_val2 = []
-    for month, group in itertools.groupby(date_val, key=lambda x: x[0].month):
+    for _, group in itertools.groupby(date_val, key=lambda x: getattr(x[0], field)):
         dates, values = zip(*group)
         val = func(values)
         d0 = dates[len(dates)//2] # take middle date
         date_val2.append([d0, val])
 
     dates2, values2 = zip(*date_val2)
+
+    return dates2, values2
+
+def _aggregate_timeseries(timeseries, func, field):
+    if not isinstance(timeseries, pd.Series):
+        raise ValueError(f'Expected pandas Series, got {type(timeseries)}')
+
+    dates = nc.num2date(timeseries.index.values, timeseries.index.name)
+    dates2, values2 = aggregate_datetime(dates, timeseries.values, func, field)
     index = pd.Index(nc.date2num(dates2, timeseries.index.name))
     index.name = timeseries.index.name
     return pd.Series(values2, index=index)
+
+
+def daily_min(timeseries):
+    return _aggregate_timeseries(timeseries, np.min, 'day')
+
+def daily_max(timeseries):
+    return _aggregate_timeseries(timeseries, np.max, 'day')
+
+def daily_mean(timeseries):
+    return _aggregate_timeseries(timeseries, np.mean, 'day')
+
+def monthly_mean(timeseries):
+    return _aggregate_timeseries(timeseries, np.mean, 'month')
+
+def yearly_mean(timeseries):
+    return _aggregate_timeseries(timeseries, np.mean, 'year')
+
+
 
 
 class Indicator:
@@ -101,15 +113,13 @@ class Indicator:
 
 class Dataset:
     
-    def __init__(self, dataset, params, downloaded_file, transform=None, units=None, frequency=None, aggregate=None, aggregate_frequency=None):
+    def __init__(self, dataset, params, downloaded_file, transform=None, units=None, frequency=None):
         self.dataset = dataset
         self.params = params
         self.downloaded_file = downloaded_file
         self.transform = transform
         self.units = units
         self.frequency = frequency
-        self.aggregate = aggregate
-        self.aggregate_frequency = aggregate_frequency
 
     def __getattr__(self, name):
         if name in self.params:
@@ -243,9 +253,6 @@ class Dataset:
         timeseries = load_csv(fname)
         timeseries = self._transform_units(timeseries)
 
-        if self.aggregate:
-            timeseries = aggregate_time(timeseries, self.aggregate, self.aggregate_frequency)
-
         return timeseries[timeseries.index >= 0]  # only load data after 1979
 
 
@@ -280,7 +287,10 @@ class Dataset:
             cube = select_area(cube, area)
 
         if self.transform:
-            cube = self.transform(cube)
+            try:
+                cube = self.transform(cube)
+            except error:
+                logging.warning(f'{type(self)}, {self.variable}: transform failed: {error}. Skip.')
 
         if self.units:
             cube.attrs['units'] = self.units  # enforce user-defined units if defined

@@ -75,7 +75,9 @@
   era5:
     name: 2m_temperature
     frequency: hourly
-    aggregate: min
+    transform: 
+      - daily_min
+      - monthly_mean
 
 - name: maximum_daily_temperature
   units: degrees Celsius
@@ -85,4 +87,6 @@
   era5:
     name: 2m_temperature
     frequency: hourly
-    aggregate: max
+    transform: 
+      - daily_max
+      - monthly_mean
