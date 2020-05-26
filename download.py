@@ -541,6 +541,7 @@ def main():
     g.add_argument('--png-region', action='store_true')
     g.add_argument('--png-timeseries', action='store_true')
     g.add_argument('--dpi', default=100, type=int, help='dop-per-inches (default: %(default)s)')
+    g.add_argument('--yearly-mean', action='store_true')
 
 
     o = parser.parse_args()
@@ -700,10 +701,17 @@ def main():
                     ts = load_csv(v.csv_file)
                     # convert units for easier reading of graphs
                     ts.index = convert_time_units_series(ts.index, years=True)
-                    ts.plot(ax=ax2, label=v.simulation_set)
+                    # ts.plot(ax=ax2, label=v.simulation_set)
+                    l, = ax2.plot(ts.index, ts.values, label=v.simulation_set)
                     ax2.legend()
+                    ax2.set_xlabel(ts.index.name)
                     ax2.set_ylabel(v.units)
                     ax2.set_title(name)
+
+                    # add yearly mean as well
+                    if o.yearly_mean:
+                        yearly_mean = ts.rolling(12).mean()
+                        l2, = ax2.plot(ts.index[::12], yearly_mean[::12], alpha=1, linewidth=2, color=l.get_color())
 
                     if o.png_timeseries:
                         fig2.savefig(v.csv_file.replace('.csv', '.png'), dpi=o.dpi)
@@ -722,6 +730,11 @@ def main():
                         color = None
                         zorder = None
                     l, = ax2.plot(ts.index, ts.values, alpha=0.5, label=v.simulation_set, linewidth=1, color=color, zorder=zorder)
+
+                    # add yearly mean as well
+                    if o.yearly_mean:
+                        yearly_mean = ts.rolling(12).mean()
+                        l2, = ax2.plot(ts.index[::12], yearly_mean[::12], alpha=1, linewidth=2, color=l.get_color(), zorder=zorder)
 
                 ax2.legend(fontsize='xx-small')
                 ax2.set_ylabel(v.units)
