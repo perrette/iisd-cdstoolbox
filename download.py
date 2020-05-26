@@ -10,14 +10,51 @@ from scipy.interpolate import RegularGridInterpolator
 import xarray as xr
 import pandas as pd
 import yaml
-# import dimarray as da
 import datetime
 import cdsapi
 
-from common import (ERA5, CMIP5, Transform, 
+from common import (ERA5, CMIP5, Transform, Indicator,
     correct_yearly_bias, correct_monthly_bias, convert_time_units_series,
     save_csv, load_csv)
+
 from cmip5 import get_models_per_asset, get_models_per_indicator, get_all_models, cmip5 as cmip5_def
+
+class ComposeIndicator(Indicator):
+    """an indicator defined via "compose" and "expression fields"
+    """
+    def __init__(self, name, units, description, datasets, expression):
+        self.expression = expression
+        super().__init__(name, units, description, datasets, self._compose)
+
+    def _compose(self, *values):
+        """evaluate expression (prefix leading digits with _)
+        """
+        kwargs = {'_'+dataset.variable if dataset.variable.startswith(tuple(str(i) for i in range(10))) else dataset.variable: value for dataset, value in zip(self.datasets, values)}
+        return eval(self.expression, kwargs)
+
+
+def parse_dataset(cls, name, defs={}, cls_kwargs={}):
+    defs.setdefault('name', name)
+    transform = Transform(defs.get('scale', 1), defs.get('offset', 0))
+    return cls(defs['name'], transform=transform, **cls_kwargs)
+
+
+def parse_indicator(cls, name, units=None, description=None, defs={}, cls_kwargs={}):
+    """parse indicator from indicators.yml
+    """
+    if 'compose' in defs:
+        assert 'expression' in defs, f'{name}: expression must be provided for composed indicator (indicators.yml)'
+        assert 'name' not in defs, f'{name}: cannot provide both "compose" and "name" (indicators.yml)'
+        assert type(defs['compose']) is list, f'{name}: expected list of variable for "compose" field, got: {type(defs["compose"])}'
+        datasets = []
+        for name2 in defs['compose']:
+            defs.update({'name': name2})
+            dataset = parse_dataset(cls, name, defs, cls_kwargs)
+            datasets.append(dataset)
+        return ComposeIndicator(name, units, description, datasets=datasets, expression=defs['expression'])
+
+    dataset = parse_dataset(cls, name, defs, cls_kwargs)
+    return Indicator(name, units, description, datasets=[dataset])
 
 
 def main():
@@ -129,8 +166,9 @@ def main():
         vdef = vdef_by_name[name]
 
         vdef2 = vdef.get('era5',{})
-        transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
-        era5 = ERA5(vdef2.get('name', name), area=o.area, transform=transform, year=o.year, units=vdef['units'], tiled=o.tiled)
+        era5_kwargs = dict(area=o.area, year=o.year, tiled=o.tiled)
+        era5 = parse_indicator(ERA5, vdef['name'], vdef.get('units'), vdef.get('description'), defs=vdef2, cls_kwargs=era5_kwargs)
+
         era5.simulation_set = 'ERA5'
         era5.set_folder = 'era5'
         era5.alias = name
@@ -150,7 +188,8 @@ def main():
                     historical = None
                 labels = {'rcp_8_5': 'RCP 8.5', 'rcp_4_5': 'RCP 4.5', 'rcp_6_0': 'RCP 6', 'rcp_2_6': 'RCP 2.6'}
                 for experiment in o.experiment:
-                    cmip5 = CMIP5(vdef2.get('name', name), model, experiment, o.period, transform=transform, units=vdef['units'], historical=historical)
+                    cmip5_kwargs = dict(model=model, experiment=experiment, period=o.period, historical=historical)
+                    cmip5 = parse_indicator(CMIP5, vdef['name'], vdef.get('units'), vdef.get('description'), defs=vdef2, cls_kwargs=cmip5_kwargs)
                     cmip5.reference = era5
                     cmip5.simulation_set = f'CMIP5 - {labels.get(experiment, experiment)} - {model}'
                     cmip5.set_folder = f'cmip5-{model}-{experiment}'
@@ -166,7 +205,7 @@ def main():
         for v in variables:
             series = v.load_timeseries(o.lon, o.lat, overwrite=o.overwrite)
 
-            if o.bias_correction and isinstance(v, CMIP5):
+            if o.bias_correction and isinstance(v.datasets[0], CMIP5):
                 era5 = v.reference.load_timeseries(o.lon, o.lat)
                 if o.yearly_bias:
                     series = correct_yearly_bias(series, era5, o.reference_period)
@@ -208,7 +247,7 @@ def main():
                 if o.view_region or o.png_region:
                     ax1.clear()
                     if not o.view_region and 'cb' in locals(): cb.remove()
-                    if isinstance(v, ERA5):
+                    if isinstance(v.datasets[0], ERA5):
                         y1, y2 = o.reference_period
                         roll = False
                         title = f'ERA5: {y1}-{y2}'
@@ -260,7 +299,7 @@ def main():
                 for v in variables:
                     ts = load_csv(v.csv_file)
                     ts.index = convert_time_units_series(ts.index, years=True)
-                    if isinstance(v, ERA5):
+                    if isinstance(v.datasets[0], ERA5):
                         color = 'k'
                         zorder = 5
                     else:

@@ -38,6 +38,17 @@
 - name: 10m_wind_speed
   units: m / s
   description: Wind speed magnitude at 10 m
+- name: 100m_wind_speed
+  units: m / s
+  description: Wind speed magnitude at 100 m
+  era5:
+    compose:
+      - 100m_u_component_of_wind
+      - 100m_v_component_of_wind
+    expression: (_100m_u_component_of_wind**2 + _100m_v_component_of_wind**2)**0.5
+  cmip5:
+    name: 10m_wind_speed
+    scale: 1.6  # average scaling from 10m to 100m, based on one test location (approximate!)
 - name: surface_solar_radiation
   units: W / m^2
   description: Solar radiation at the surface (accounts for shadowing from clouds

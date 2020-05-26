@@ -32,6 +32,36 @@ def convert_time_units_series(index, years=False):
     return index
 
 
+class Indicator:
+    """A class to compose CDS datasets into one custom Indicator (e.g. u and v components of wind into wind magnitude)
+    """
+    def __init__(self, name, units, description, datasets, compose=None):
+        self.name = name
+        self.units = units
+        self.description = description
+        self.datasets = datasets
+        assert len(datasets) > 0
+        if compose is None and len(datasets) == 1:
+            compose = lambda x:x  # identity: do not chamge anything
+        self.compose = compose
+
+    def download(self):
+        for dataset in self.datasets:
+            dataset.download()
+
+    def load_timeseries(self, lon, lat, **kwargs):
+        values = [dataset.load_timeseries(lon, lat, **kwargs) for dataset in self.datasets]
+        result = self.compose(*values)
+        result.name = f'{self.name} ({self.units}' if self.units else self.name
+        return result
+
+    def load_cube(self, *args, **kwargs):
+        values = [dataset.load_cube(*args, **kwargs) for dataset in self.datasets]
+        result = self.compose(*values)
+        result.attrs['units'] = self.units
+        return result
+
+
 class Dataset:
     
     def __init__(self, dataset, params, downloaded_file, transform=None, units=None):
