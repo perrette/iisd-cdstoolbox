@@ -1,40 +1,32 @@
 - name: 2m_temperature
   units: degrees Celsius
   description: 2-m air temperature
-  era5:
-    offset: -273.15
-    note: Kelvin to degrees C
-  cmip5:
-    offset: -273.15
+  offset: -273.15  # Kelvin to degrees C
 - name: precipitation
   units: mm per month
   description: Total precipitation (including snow)
+  scale: 2592000  # mm/s to mm / month
   era5:
     name: mean_total_precipitation_rate
-    scale: 2592000
-    note: mm/s to mm / month
   cmip5:
     name: mean_precipitation_flux
-    scale: 2592000
-    note: mm/s to mm / month
 - name: runoff
   units: mm per month
   description: Runoff
+  scale: 2592000  # mm/s to mm / month
   era5:
     name: mean_runoff_rate
-    scale: 2592000
   cmip5:
     name: runoff
-    scale: 2592000
 - name: evaporation
   units: mm per month
   description: Evaporation
   era5:
     name: mean_evaporation_rate
-    scale: -2592000
+    scale: -2592000  # change sign, mm / month
   cmip5:
     name: evaporation
-    scale: 2592000
+    scale: 2592000  # mm/s to mm / month
 - name: 10m_wind_speed
   units: m / s
   description: Wind speed magnitude at 10 m

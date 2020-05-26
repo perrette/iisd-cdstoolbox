@@ -13,18 +13,32 @@ import yaml
 import datetime
 import cdsapi
 
-from common import (ERA5, CMIP5, Transform, Indicator,
+from common import (ERA5, CMIP5, Indicator,
     correct_yearly_bias, correct_monthly_bias, convert_time_units_series,
     save_csv, load_csv)
 
 from cmip5 import get_models_per_asset, get_models_per_indicator, get_all_models, cmip5 as cmip5_def
 
+
+class Transform:
+    def __init__(self, scale=1, offset=0, transform=None):
+        self.scale = scale
+        self.offset = offset
+        self.transform = transform
+
+    def __call__(self, data):
+        data2 = (data + self.offset)*self.scale
+        if self.transform:
+            data2 = self.transform(data2)
+        return data2
+
+
 class ComposeIndicator(Indicator):
     """an indicator defined via "compose" and "expression fields"
     """
-    def __init__(self, name, units, description, datasets, expression):
+    def __init__(self, name, units, description, datasets, expression, **kwargs):
         self.expression = expression
-        super().__init__(name, units, description, datasets, self._compose)
+        super().__init__(name, units, description, datasets, self._compose, **kwargs)
 
     def _compose(self, *values):
         """evaluate expression (prefix leading digits with _)
@@ -33,13 +47,14 @@ class ComposeIndicator(Indicator):
         return eval(self.expression, kwargs)
 
 
-def parse_dataset(cls, name, defs={}, cls_kwargs={}):
-    defs.setdefault('name', name)
-    transform = Transform(defs.get('scale', 1), defs.get('offset', 0))
-    return cls(defs['name'], transform=transform, **cls_kwargs)
+def parse_dataset(cls, name, scale=1, offset=0, defs={}, cls_kwargs={}):
+    vdef = {'name': name, 'scale': scale, 'offset': offset}
+    vdef.update(defs) # update with dataset-specific values
+    transform = Transform(vdef.get('scale', 1), vdef.get('offset', 0))
+    return cls(vdef['name'], transform=transform, **cls_kwargs)
 
 
-def parse_indicator(cls, name, units=None, description=None, defs={}, cls_kwargs={}):
+def parse_indicator(cls, name, units=None, description=None, scale=1, offset=0, defs={}, cls_kwargs={}):
     """parse indicator from indicators.yml
     """
     if 'compose' in defs:
@@ -49,11 +64,11 @@ def parse_indicator(cls, name, units=None, description=None, defs={}, cls_kwargs
         datasets = []
         for name2 in defs['compose']:
             defs.update({'name': name2})
-            dataset = parse_dataset(cls, name, defs, cls_kwargs)
+            dataset = parse_dataset(cls, name, scale, offset, defs, cls_kwargs)
             datasets.append(dataset)
         return ComposeIndicator(name, units, description, datasets=datasets, expression=defs['expression'])
 
-    dataset = parse_dataset(cls, name, defs, cls_kwargs)
+    dataset = parse_dataset(cls, name, scale, offset, defs, cls_kwargs)
     return Indicator(name, units, description, datasets=[dataset])
 
 
@@ -164,10 +179,12 @@ def main():
         variables = []  # each variable for the simulation set
 
         vdef = vdef_by_name[name]
+        indicator_def = dict(name=name, units=vdef.get('units'), description=vdef.get('description'), 
+            scale=vdef.get('scale', 1), offset=vdef.get('offset', 0))
 
         vdef2 = vdef.get('era5',{})
         era5_kwargs = dict(area=o.area, year=o.year, tiled=o.tiled)
-        era5 = parse_indicator(ERA5, vdef['name'], vdef.get('units'), vdef.get('description'), defs=vdef2, cls_kwargs=era5_kwargs)
+        era5 = parse_indicator(ERA5, defs=vdef2, cls_kwargs=era5_kwargs, **indicator_def)
 
         era5.simulation_set = 'ERA5'
         era5.set_folder = 'era5'
@@ -181,15 +198,15 @@ def main():
 
         if not o.dataset or o.dataset == 'cmip5':
             for model in o.model:
+                labels = {'rcp_8_5': 'RCP 8.5', 'rcp_4_5': 'RCP 4.5', 'rcp_6_0': 'RCP 6', 'rcp_2_6': 'RCP 2.6'}
                 if o.historical:
-                    historical = CMIP5(vdef2.get('name', name), model, 'historical', '185001-200512', transform=transform, units=vdef['units'])
-                    historical.alias = name
+                    historical_kwargs = dict(model=model, experiment='historical', period='185001-200512')
+                    historical = parse_indicator(CMIP5, defs=vdef2, cls_kwargs=historical_kwargs, **indicator_def)
                 else:
                     historical = None
-                labels = {'rcp_8_5': 'RCP 8.5', 'rcp_4_5': 'RCP 4.5', 'rcp_6_0': 'RCP 6', 'rcp_2_6': 'RCP 2.6'}
                 for experiment in o.experiment:
                     cmip5_kwargs = dict(model=model, experiment=experiment, period=o.period, historical=historical)
-                    cmip5 = parse_indicator(CMIP5, vdef['name'], vdef.get('units'), vdef.get('description'), defs=vdef2, cls_kwargs=cmip5_kwargs)
+                    cmip5 = parse_indicator(CMIP5, defs=vdef2, cls_kwargs=cmip5_kwargs, **indicator_def)
                     cmip5.reference = era5
                     cmip5.simulation_set = f'CMIP5 - {labels.get(experiment, experiment)} - {model}'
                     cmip5.set_folder = f'cmip5-{model}-{experiment}'

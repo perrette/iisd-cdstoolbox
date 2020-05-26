@@ -35,7 +35,7 @@ def convert_time_units_series(index, years=False):
 class Indicator:
     """A class to compose CDS datasets into one custom Indicator (e.g. u and v components of wind into wind magnitude)
     """
-    def __init__(self, name, units, description, datasets, compose=None):
+    def __init__(self, name, units, description, datasets, compose=None, transform=None):
         self.name = name
         self.units = units
         self.description = description
@@ -44,6 +44,7 @@ class Indicator:
         if compose is None and len(datasets) == 1:
             compose = lambda x:x  # identity: do not chamge anything
         self.compose = compose
+        self.transform = transform
 
     def download(self):
         for dataset in self.datasets:
@@ -52,12 +53,16 @@ class Indicator:
     def load_timeseries(self, lon, lat, **kwargs):
         values = [dataset.load_timeseries(lon, lat, **kwargs) for dataset in self.datasets]
         result = self.compose(*values)
+        if self.transform:
+            result = self.transform(result)
         result.name = f'{self.name} ({self.units}' if self.units else self.name
         return result
 
     def load_cube(self, *args, **kwargs):
         values = [dataset.load_cube(*args, **kwargs) for dataset in self.datasets]
         result = self.compose(*values)
+        if self.transform:
+            result = self.transform(result)
         result.attrs['units'] = self.units
         return result
 
@@ -428,19 +433,6 @@ def tiled_area(area, dx=10, dy=5):
                 subareas.append([t, l, b, r])
     # print(f'subareas: {subareas}')
     return subareas
-
-
-class Transform:
-    def __init__(self, scale=1, offset=0, transform=None):
-        self.scale = scale
-        self.offset = offset
-        self.transform = transform
-
-    def __call__(self, data):
-        data2 = (data + self.offset)*self.scale
-        if self.transform:
-            data2 = self.transform(data2)
-        return data2
 
 
 def load_csv(fname):
