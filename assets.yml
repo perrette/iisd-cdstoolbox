@@ -8,10 +8,6 @@ energy:
 - 100m_wind_speed
 - relative_humidity
 
-nature:
-- 2m_temperature
-- precipitation
-
 irrigation:
 - precipitation
 - 2m_temperature
@@ -26,6 +22,10 @@ wastewater:
 - runoff
 - evaporation
 
+nature:
+- 2m_temperature
+- precipitation
+
 buildings:
 - 2m_temperature
 - precipitation
@@ -37,3 +37,8 @@ roads:
 - evaporation
 - runoff
 - surface_solar_radiation
+
+extremes:
+- maximum_daily_temperature
+- minimum_daily_temperature
+- frost_days  # experimental

@@ -203,6 +203,10 @@ Additional, custom functions can be defined in [transform.py](transform.py).
 CMIP5 daily are currently only available for four climate models, for which the historical and future periods have been checked and defined as `daily_periods` in [cmip5.py](cmip5.py): 
 ipsl_cm5a_mr, mpi_esm_mr, bnu_esm, csiro_mk3_6_0. 
 
+Variables that rely on higher-frequency datasets are grouped under `extremes` asset for convenience. 
+The long retrieval time and large data volume for these higher-frequency indicator means they are not convenient to access this way.
+It would be probably easier to use the https://cds.climate.copernicus.eu/cdsapp#!/dataset/sis-agroclimatic-indicators?tab=overview dataset instead.
+
 
 ## netcdf to csv
 
