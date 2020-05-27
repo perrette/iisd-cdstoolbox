@@ -77,8 +77,14 @@ def get_models_per_variable(cmip5_name, experiment=None):
 
 def get_models_per_indicator(name, experiment=None):
     vdef = {vdef['name']:vdef for vdef in indicators}[name]
-    cmip5_name = vdef.get('cmip5', {}).get('name', name)
-    return get_models_per_variable(cmip5_name, experiment)
+    cmip5_def = vdef.get('cmip5', {})
+    if 'compose' in cmip5_def:
+        all_models  = [set(get_models_per_variable(name0, experiment)) for name0 in cmip5_def['compose']]
+        return sorted(set.intersection(*all_models))
+
+    else:
+        cmip5_name = cmip5_def.get('name', name)
+        return get_models_per_variable(cmip5_name, experiment)
 
 
 def get_models_per_asset(asset, experiment=None, verbose=True):
