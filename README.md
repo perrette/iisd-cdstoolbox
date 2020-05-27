@@ -86,14 +86,6 @@ Visit the CDS Datasets download pages, for more information about available vari
 In particular, clicking on "Show API request" provides information about spelling of the parameters, e.g. that "2m temperature" is spelled `2m_temperature` and "RCP 8.5" is spelled `rcp_8_5`.
 
 
-*Experimental*
-
-A list of models that provides for all indicators within one asset class can be obtained via:
-
-	python cmip5.py --asset energy
-
-It is based on trial and error on a list of all models defined in [cmip5.yml](cmip5.yml), and then saved to [cmip5_listing.json](cmip5_listing.json).
-
 
 ### Indicator definition
 
@@ -165,7 +157,8 @@ For complex expressions, it is possible to provide a `mapping` field to store in
 
 where `T` and `TD` are provided as intermediary variables, to be used in `expression`.
 
-Monthly variables can be aggregated from higher-frequency datasets:
+ERA5-hourly dataset can be retrieved via `frequency: hourly` field, and subsequently aggregated to monthly indicators 
+thanks to pre-defined functions `daily_max`, `daily_min`, `daily_mean`, `monthly_mean`, `yearly_mean`. For instance:
 
 	- name: maximum_daily_temperature
 	  units: degrees Celsius
@@ -180,7 +173,35 @@ Monthly variables can be aggregated from higher-frequency datasets:
 	      - monthly_mean
 
 This variable is available directly for CMIP5, but not in ERA5. It is calculated from `2m_temperature` from ERA5 `hourly` dataset, and subsequently aggregated.
-Transformations `daily_max`, `daily_min`, `daily_mean`, `monthly_mean`, `yearly_mean` are defined.
+Note the ERA5-hourly dataset takes significantly longer to retrieve than ERA5 monthly. Consider using in combination with `--year 2000` to retrieve a single year of the ERA5 dataset.
+
+Similarly, it is possible to retrieve daily CMIP5 datasets. Here for frost days:
+
+	- name: frost_days
+	  units: monthly
+	  cmip5:
+	    name: minimum_2m_temperature_in_the_last_24_hours
+	    frequency: daily
+	    offset: -273.15
+	    transform: 
+	      - threshold_negative
+	      - monthly_count
+	  era5:
+	    name: 2m_temperature
+	    frequency: hourly
+	    offset: -273.15
+	    transform:
+	      - daily_min
+	      - threshold_negative
+	      - monthly_count
+
+
+It takes minimum daily temperature (in Celsius) as input and count the days reaching freezing temperature.
+Note the `threshold_negative` and `monthly_count` functions used in combination with `offset`.
+Additional, custom functions can be defined in [transform.py](transform.py).
+
+CMIP5 daily are currently only available for four climate models, for which the historical and future periods have been checked and defined as `daily_periods` in [cmip5.py](cmip5.py): 
+ipsl_cm5a_mr, mpi_esm_mr, bnu_esm, csiro_mk3_6_0. 
 
 
 ## netcdf to csv
