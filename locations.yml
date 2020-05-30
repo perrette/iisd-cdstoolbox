@@ -11,3 +11,23 @@
 - name: Uvinza
   lon: 30.39
   lat: -5.10
+
+- name: Kokschetau
+  lon: 69.38
+  lat: 53.28
+  area: [57, 45, 40, 89]
+
+- name: Qulsary
+  lon: 54.02
+  lat: 46.98
+  area: [57, 45, 40, 89]
+
+- name: Almaty
+  lon: 76.90
+  lat: 43.28
+  area: [57, 45, 40, 89]
+
+- name: Schymkent
+  lon: 69.58
+  lat: 42.32
+  area: [57, 45, 40, 89]
