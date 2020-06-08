@@ -55,7 +55,7 @@ class Indicator:
         result = self.compose(*values)
         if self.transform:
             result = self.transform(result)
-        result.name = f'{self.name} ({self.units}' if self.units else self.name
+        result.name = f'{self.name} ({self.units})' if self.units else self.name
         return result
 
     def load_cube(self, *args, **kwargs):
@@ -543,7 +543,7 @@ def correct_monthly_bias(series, era5, interval, method):
     cmip5_clim = monthly_climatology(dates, series.values, interval)
     # delta = era5_clim - cmip5_clim
 
-    print(f'Applying "{method}" bias correction.')
+    print(f'Applying "{method}" bias correction for {series.name}.')
     print(' - yearly bias prior correction:', np.mean(cmip5_clim - era5_clim))
 
     # apply monthly anomaly
@@ -565,7 +565,7 @@ def correct_yearly_bias(series, era5, interval, method):
     era5_clim = yearly_climatology(era5_dates, era5.values, interval)
     cmip5_clim = yearly_climatology(dates, series.values, interval)
 
-    print(f'Applying "{method}" bias correction.')
+    print(f'Applying "{method}" bias correction for {series.name}.')
     print(' - yearly bias prior correction:', cmip5_clim - era5_clim)
 
     unbiased = _correct_bias(series.values, cmip5_clim, era5_clim, method)

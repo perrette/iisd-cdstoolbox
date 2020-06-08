@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 
 from pathlib import Path
 import re, os
+import logging
 from common import load_csv, convert_time_units_series
 
 def get_metadata(csv_file):
