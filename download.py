@@ -138,7 +138,8 @@ def main():
     g.add_argument('--tiled', action='store_true', help=argparse.SUPPRESS)
     g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help=argparse.SUPPRESS)
     #g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help='ERA5 tile in degress lon, lat (%(default)s by default)')
-    g.add_argument('--area', nargs=4, type=float, help='area as four numbers: top, left, bottom, right (CDS convention)')
+    g.add_argument('--area', nargs=4, type=float, help='area for ERA5 data download as four numbers: top, left, bottom, right (CDS convention)')
+    g.add_argument('--view', nargs=4, type=float, help='area for plot as four numbers: top, left, bottom, right (CDS convention)')
 
     g = parser.add_argument_group('ERA5 control')
     # g.add_argument('--year', nargs='+', default=list(range(1979, 2019+1)), help='ERA5 years to download, default: %(default)s')
@@ -283,6 +284,9 @@ def main():
                 cartopy = None
                 kwargs = {}
 
+            if o.view is None:
+                o.view = o.area
+
             for v in variables:
                 v0 = v.datasets[0]
                 if figures_created and not (o.view_region or o.view_timeseries):
@@ -308,11 +312,11 @@ def main():
                         title = f'ERA5: {y1}-{y2}'
                     else:
                         y1, y2 = 2071, 2100
-                        roll=True if o.area[1] < 0 else False
+                        roll=True if o.view[1] < 0 else False
                         title = f'{labels.get(v0.experiment, v0.experiment)} ({v0.model}): {y1}-{y2}'
 
                     refslice = slice(str(y1), str(y2))
-                    map = v.load_cube(time=refslice, area=o.area, roll=roll).mean(dim='time')
+                    map = v.load_cube(time=refslice, area=o.view, roll=roll).mean(dim='time')
 
                     h = ax1.imshow(map.values[::-1], extent=cube_area(map, extent=True))
                     cb = plt.colorbar(h, ax=ax1, label=f'{name} ({v.units})')
