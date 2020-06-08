@@ -12,7 +12,6 @@ irrigation:
 - runoff
 - evaporation
 - 10m_wind_speed
-- relative_humidity
 
 wastewater:
 - 2m_temperature
@@ -41,5 +40,3 @@ extras:
 - minimum_daily_temperature
 - 100m_wind_speed
 - relative_humidity
-- maximum_daily_temperature
-- minimum_daily_temperature
