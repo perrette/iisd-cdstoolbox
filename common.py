@@ -417,7 +417,7 @@ class ERA5(Dataset):
 
         if frequency == 'hourly':
             params['day'] = list(range(1, 31+1))
-            params['time'] = list(range(0, 23+1))
+            params['time'] = [f'{i}:00' for i in range(0, 23+1)]
 
         super().__init__(dataset, params, downloaded_file, **kwargs)
 
