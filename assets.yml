@@ -1,11 +1,3 @@
-classic:
-- 2m_temperature
-- precipitation
-- runoff
-- evaporation
-- surface_solar_radiation
-- 10m_wind_speed
-
 energy:
 - 2m_temperature
 - precipitation
@@ -13,8 +5,6 @@ energy:
 - evaporation
 - surface_solar_radiation
 - 10m_wind_speed
-- 100m_wind_speed
-- relative_humidity
 
 irrigation:
 - precipitation
@@ -46,18 +36,9 @@ roads:
 - runoff
 - surface_solar_radiation
 
-extremes:
+extras:
 - maximum_daily_temperature
 - minimum_daily_temperature
-# - frost_days  # experimental
-
-all:
-- 2m_temperature
-- precipitation
-- runoff
-- evaporation
-- surface_solar_radiation
-- 10m_wind_speed
 - 100m_wind_speed
 - relative_humidity
 - maximum_daily_temperature
