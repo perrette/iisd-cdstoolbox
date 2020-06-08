@@ -364,7 +364,7 @@ def main():
                     else:
                         color = None
                         zorder = None
-                    l, = ax2.plot(ts.index, ts.values, alpha=0.5, label=v.simulation_set, linewidth=1, color=color, zorder=zorder)
+                    l, = ax2.plot(ts.index, ts.values, alpha=0.5, label=v.simulation_set, linewidth=1 if o.yearly_mean else 2, color=color, zorder=zorder)
 
                     # add yearly mean as well
                     if o.yearly_mean:
