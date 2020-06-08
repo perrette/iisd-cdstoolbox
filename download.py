@@ -260,12 +260,15 @@ def main():
         for v in variables:
             series = v.load_timeseries(o.lon, o.lat, overwrite=o.overwrite)
 
-            if o.bias_correction and isinstance(v.datasets[0], CMIP5):
+            bias_correction_method = vdef.get('bias-correction')
+
+            if o.bias_correction and isinstance(v.datasets[0], CMIP5) and bias_correction_method is not None:
                 era5 = v.reference.load_timeseries(o.lon, o.lat)
+                v.set_folder += '-unbiased'
                 if o.yearly_bias:
-                    series = correct_yearly_bias(series, era5, o.reference_period)
+                    series = correct_yearly_bias(series, era5, o.reference_period, bias_correction_method)
                 else:
-                    series = correct_monthly_bias(series, era5, o.reference_period)
+                    series = correct_monthly_bias(series, era5, o.reference_period, bias_correction_method)
 
             folder = os.path.join(o.output, loc_folder, asset_folder, v.set_folder)
             os.makedirs(folder, exist_ok=True)

@@ -2,6 +2,7 @@
   units: degrees Celsius
   description: 2-m air temperature
   offset: -273.15  # Kelvin to degrees C
+  bias-correction: offset
 
 - name: precipitation
   units: mm per month
@@ -11,6 +12,7 @@
     name: mean_total_precipitation_rate
   cmip5:
     name: mean_precipitation_flux
+  bias-correction: percent
 
 - name: runoff
   units: mm per month
@@ -20,6 +22,7 @@
     name: mean_runoff_rate
   cmip5:
     name: runoff
+  bias-correction: percent
 
 - name: evaporation
   units: mm per month
@@ -30,10 +33,12 @@
   cmip5:
     name: evaporation
     scale: 2592000  # mm/s to mm / month
+  bias-correction: percent
 
 - name: 10m_wind_speed
   units: m / s
   description: Wind speed magnitude at 10 m
+  bias-correction: scale
 
 - name: 100m_wind_speed
   units: m / s
@@ -46,6 +51,7 @@
   cmip5:
     name: 10m_wind_speed
     scale: 1.6  # average scaling from 10m to 100m, based on one test location (approximate!)
+  bias-correction: scale
 
 - name: surface_solar_radiation
   units: W / m^2
@@ -78,6 +84,7 @@
     transform: 
       - daily_min
       - monthly_mean
+  bias-correction: offset
 
 - name: maximum_daily_temperature
   units: degrees Celsius
@@ -90,6 +97,7 @@
     transform: 
       - daily_max
       - monthly_mean
+  bias-correction: offset
 
 - name: frost_days
   units: monthly

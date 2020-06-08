@@ -516,7 +516,24 @@ def yearly_climatology(dates, values, interval=None):
     return np.mean([val for date, val in date_val])
 
 
-def correct_monthly_bias(series, era5, interval):
+def _correct_bias(values, clim, target, method):
+    if method == 'offset':
+        return values + (target - clim)
+    elif method == 'percent':
+        if clim == 0:
+            logging.warning(f'zero-value in % bias correction ({method})')
+            return np.nan
+        return (values - clim) * (target / clim) + target
+    elif method == 'scale':
+        if clim == 0:
+            logging.warning(f'zero-value in % bias correction ({method})')
+            return np.nan
+        return values * (target / clim)
+    else:
+        raise NotImplementedError(method)
+
+
+def correct_monthly_bias(series, era5, interval, method):
     """ correct for each month
     """
     dates = nc.num2date(series.index, time_units)
@@ -524,19 +541,22 @@ def correct_monthly_bias(series, era5, interval):
 
     era5_clim = monthly_climatology(era5_dates, era5.values, interval)
     cmip5_clim = monthly_climatology(dates, series.values, interval)
-    delta = era5_clim - cmip5_clim
+    # delta = era5_clim - cmip5_clim
 
-    print('yearly offset from (monthly) bias correction:', np.mean(delta))
+    print(f'Applying "{method}" bias correction.')
+    print(' - yearly bias prior correction:', np.mean(cmip5_clim - era5_clim))
 
     # apply monthly anomaly
     unbiased = series.values.copy()
     for i, date in enumerate(dates):
-        unbiased[i] += delta[date.month - 1]
+        unbiased[i] = _correct_bias(unbiased[i], cmip5_clim[date.month -1], era5_clim[date.month -1], method)
+
+    print(' - yearly bias after correction:', np.mean(monthly_climatology(dates, unbiased, interval) - era5_clim))
 
     return pd.Series(unbiased, index=series.index, name=series.name)
 
 
-def correct_yearly_bias(series, era5, interval):
+def correct_yearly_bias(series, era5, interval, method):
     """ correct for each month
     """
     dates = nc.num2date(series.index, time_units)
@@ -544,9 +564,12 @@ def correct_yearly_bias(series, era5, interval):
 
     era5_clim = yearly_climatology(era5_dates, era5.values, interval)
     cmip5_clim = yearly_climatology(dates, series.values, interval)
-    delta = era5_clim - cmip5_clim
 
-    print('yearly offset from bias correction:', delta)
+    print(f'Applying "{method}" bias correction.')
+    print(' - yearly bias prior correction:', cmip5_clim - era5_clim)
 
-    # apply yearly anomaly
-    return pd.Series(series.values + delta, index=series.index, name=series.name)
+    unbiased = _correct_bias(series.values, cmip5_clim, era5_clim, method)
+
+    print(' - yearly bias after correction:', yearly_climatology(dates, unbiased, interval) - era5_clim)
+
+    return pd.Series(unbiased, index=series.index, name=series.name)
