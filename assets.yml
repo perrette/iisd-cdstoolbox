@@ -40,3 +40,8 @@ extras:
 - minimum_daily_temperature
 - 100m_wind_speed
 - relative_humidity
+
+daily:
+- 2m_temperature_daily
+- maximum_daily_temperature_daily
+- minimum_daily_temperature_daily
