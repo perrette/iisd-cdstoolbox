@@ -9,7 +9,7 @@ import pandas as pd
 
 
 __all__ = ['daily_min', 'daily_max', 'daily_mean', 'monthly_mean', 'yearly_mean', 
-    'threshold_negative', 'threshold_positive', 'monthly_count']
+    'threshold_negative', 'threshold_positive', 'monthly_count', 'interpolate_daily']
 
 def aggregate_datetime(dates, values, func, field):
     " field is a date(time) field"
@@ -60,3 +60,13 @@ def threshold_positive(timeseries):
 
 def monthly_count(timeseries):
     return _aggregate_timeseries(timeseries, lambda t: np.sum(t), 'month')
+
+def interpolate_daily(timeseries):
+    if not isinstance(timeseries, pd.Series):
+        raise ValueError(f'Expected pandas Series, got {type(timeseries)}')
+    day1, dayend = timeseries.index.values[0], timeseries.index.values[-1]
+    days = np.arange(day1, dayend+1)
+    daily_values = np.interp(days, timeseries.index.values, timeseries.values)
+    index = pd.Index(days)
+    index.name = timeseries.index.name
+    return pd.Series(daily_values, index=index, name=timeseries.name)
