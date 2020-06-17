@@ -116,3 +116,39 @@
       - daily_min
       - threshold_negative
       - monthly_count
+
+- name: minimum_daily_temperature_daily
+  units: degrees Celsius
+  offset: -273.15
+  cmip5:
+    name: minimum_2m_temperature_in_the_last_24_hours
+    frequency: daily
+  era5:
+    name: 2m_temperature
+    frequency: hourly
+    transform:
+      - daily_min
+
+- name: maximum_daily_temperature_daily
+  units: degrees Celsius
+  offset: -273.15
+  cmip5:
+    name: maximum_2m_temperature_in_the_last_24_hours
+    frequency: daily
+  era5:
+    name: 2m_temperature
+    frequency: hourly
+    transform:
+      - daily_max
+
+- name: mean_daily_temperature_daily
+  units: degrees Celsius
+  offset: -273.15
+  cmip5:
+    name: 2m_temperature
+    frequency: daily
+  era5:
+    name: 2m_temperature
+    frequency: hourly
+    transform:
+      - daily_mean
