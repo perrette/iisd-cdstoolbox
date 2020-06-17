@@ -365,7 +365,7 @@ class CMIP5(Dataset):
 
         # extract all files if necessary
         with zipfile.ZipFile(self.downloaded_file, 'r') as zipObj:
-            listOfiles = zipObj.namelist()
+            listOfiles = sorted(zipObj.namelist())
 
             if not os.path.exists(os.path.join(self.folder, listOfiles[0])):
                 print('Extracting all files...')
