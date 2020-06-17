@@ -94,14 +94,17 @@ class Dataset:
         name, ext = os.path.splitext(basename)
         return name
 
-    def download(self):
+    def download(self, timeout=60*50, overwrite=False):
         if self.sub_requests:
             # bypass download, use sub_requests instead
             with ThreadPoolExecutor() as pool:
-                res = pool.map(lambda dataset: dataset.download(), self.sub_requests)            
+                res = pool.map(lambda dataset: dataset.download(timeout), self.sub_requests, timeout=timeout)
             return res
 
-        c = cdsapi.Client(timeout=60*50)
+        if os.path.exists(self.downloaded_file) and not overwrite:
+            return 
+
+        c = cdsapi.Client(timeout=timeout+2)
 
         os.makedirs(self.folder, exist_ok=True)
 
