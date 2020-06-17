@@ -69,13 +69,14 @@ class Indicator:
 
 class Dataset:
     
-    def __init__(self, dataset, params, downloaded_file, transform=None, units=None, frequency=None):
+    def __init__(self, dataset, params, downloaded_file, transform=None, units=None, frequency=None, sub_requests=None):
         self.dataset = dataset
         self.params = params
         self.downloaded_file = downloaded_file
         self.transform = transform
         self.units = units
         self.frequency = frequency
+        self.sub_requests = sub_requests or []
 
     def __getattr__(self, name):
         if name in self.params:
@@ -93,7 +94,12 @@ class Dataset:
         return name
 
     def download(self):
-        c = cdsapi.Client(timeout=60*5)
+        if self.sub_requests:
+            for dataset in self.sub_requests:
+                dataset.download()
+            return
+
+        c = cdsapi.Client(timeout=60*50)
 
         os.makedirs(self.folder, exist_ok=True)
 
@@ -397,13 +403,13 @@ class ERA5(Dataset):
         name = f'{variable}_{year0}-{yearf}_{area[0]}-{area[1]}-{area[2]}-{area[3]}'
         downloaded_file = os.path.join(folder, name+'.nc')
 
-        self.sub_requests = []
+        sub_requests = []
 
         if split_year:
-            self.sub_requests = [ERA5(variable, [y], area, tiled=tiled, frequency=frequency, split_year=False, **kwargs) for y in year]
+            sub_requests = [ERA5(variable, [y], area, tiled=tiled, frequency=frequency, split_year=False, **kwargs) for y in year]
 
         elif tiled:
-            self.sub_requests = [ERA5(variable, year, subarea, tiled=False, frequency=frequency, split_year=False, **kwargs) for subarea in tiled_area(area)]
+            sub_requests = [ERA5(variable, year, subarea, tiled=False, frequency=frequency, split_year=False, **kwargs) for subarea in tiled_area(area)]
 
         params = {
             'format': 'netcdf',
@@ -419,7 +425,7 @@ class ERA5(Dataset):
             params['day'] = list(range(1, 31+1))
             params['time'] = list(range(0, 23+1))
 
-        super().__init__(dataset, params, downloaded_file, **kwargs)
+        super().__init__(dataset, params, downloaded_file, sub_requests=sub_requests, **kwargs)
 
     def get_ncfiles(self):
         if self.sub_requests:
