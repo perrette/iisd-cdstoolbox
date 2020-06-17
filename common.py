@@ -10,7 +10,7 @@ from scipy.interpolate import RegularGridInterpolator
 import xarray as xr
 import pandas as pd
 import yaml
-# import dimarray as da
+from concurrent.futures import ThreadPoolExecutor
 import datetime
 import cdsapi
 
@@ -67,6 +67,7 @@ class Indicator:
         return result
 
 
+
 class Dataset:
     
     def __init__(self, dataset, params, downloaded_file, transform=None, units=None, frequency=None, sub_requests=None):
@@ -95,9 +96,10 @@ class Dataset:
 
     def download(self):
         if self.sub_requests:
-            for dataset in self.sub_requests:
-                dataset.download()
-            return
+            # bypass download, use sub_requests instead
+            with ThreadPoolExecutor() as pool:
+                res = pool.map(lambda dataset: dataset.download(), self.sub_requests)            
+            return res
 
         c = cdsapi.Client(timeout=60*50)
 
@@ -428,14 +430,15 @@ class ERA5(Dataset):
         super().__init__(dataset, params, downloaded_file, sub_requests=sub_requests, **kwargs)
 
     def get_ncfiles(self):
+        if not os.path.exists(self.downloaded_file):
+            self.download()
+
         if self.sub_requests:
             ncfiles = []
             for v in self.sub_requests:
                 ncfiles.extend(v.get_ncfiles())
             return ncfiles
 
-        if not os.path.exists(self.downloaded_file):
-            self.download()
         return [self.downloaded_file]
 
 # class ERA5hourly(ERA5):
