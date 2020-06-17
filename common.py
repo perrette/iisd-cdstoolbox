@@ -47,8 +47,9 @@ class Indicator:
         self.transform = transform
 
     def download(self):
-        for dataset in self.datasets:
-            dataset.download()
+        with ThreadPoolExecutor() as pool:
+            res = pool.map(lambda dataset: dataset.download(), self.datasets)
+        return res
 
     def load_timeseries(self, lon, lat, **kwargs):
         values = [dataset.load_timeseries(lon, lat, **kwargs) for dataset in self.datasets]
