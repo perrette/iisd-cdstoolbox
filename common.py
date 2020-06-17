@@ -10,7 +10,6 @@ from scipy.interpolate import RegularGridInterpolator
 import xarray as xr
 import pandas as pd
 import yaml
-from concurrent.futures import ThreadPoolExecutor
 import datetime
 import cdsapi
 
@@ -94,17 +93,18 @@ class Dataset:
         name, ext = os.path.splitext(basename)
         return name
 
-    def download(self, timeout=60*50, overwrite=False):
+    def download(self, timeout=60*50, overwrite=False, wait_until_complete=True):
         if self.sub_requests:
-            # bypass download, use sub_requests instead
-            with ThreadPoolExecutor() as pool:
-                res = pool.map(lambda dataset: dataset.download(timeout), self.sub_requests, timeout=timeout)
-            return res
+            results = [dataset.download(timeout, overwrite, wait_until_complete=False) for dataset in self.sub_requests]
+            for dataset, res in zip(self.sub_requests, results):
+                if res is not None:
+                    res.download(dataset.downloaded_file)
+            return
 
         if os.path.exists(self.downloaded_file) and not overwrite:
             return 
 
-        c = cdsapi.Client(timeout=timeout+2)
+        c = cdsapi.Client(timeout=timeout+2, wait_until_complete=wait_until_complete)
 
         os.makedirs(self.folder, exist_ok=True)
 
@@ -121,8 +121,10 @@ class Dataset:
 
         res = c.retrieve(
             self.dataset,
-            self.params,
-            self.downloaded_file)
+            self.params)
+
+        if wait_until_complete:
+            res.download(self.downloaded_file)
 
         return res
 
