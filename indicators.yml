@@ -118,6 +118,7 @@
       - monthly_count
 
 - name: minimum_daily_temperature_daily
+  description: same as minimum_daily_temperature but daily frequency
   units: degrees Celsius
   offset: -273.15
   cmip5:
@@ -130,6 +131,7 @@
       - daily_min
 
 - name: maximum_daily_temperature_daily
+  description: same as maximum_daily_temperature but daily frequency
   units: degrees Celsius
   offset: -273.15
   cmip5:
@@ -141,7 +143,8 @@
     transform:
       - daily_max
 
-- name: mean_daily_temperature_daily
+- name: 2m_temperature_daily
+  description: same as 2m_temperature but daily frequency
   units: degrees Celsius
   offset: -273.15
   cmip5:
