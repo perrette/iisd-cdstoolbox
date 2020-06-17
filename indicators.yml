@@ -100,7 +100,7 @@
   bias-correction: offset
 
 - name: frost_days
-  units: monthly
+  units: per month
   cmip5:
     name: minimum_2m_temperature_in_the_last_24_hours
     frequency: daily
@@ -158,3 +158,38 @@
     transform:
       - daily_mean
   bias-correction: offset
+
+- name: cooling_days
+  units: days above 22C per month
+  offset: -295.15   # absolute Kelvin minus 22 degrees
+  cmip5:
+    name: maximum_2m_temperature_in_the_last_24_hours
+    frequency: daily
+    transform: 
+      - threshold_positive
+      - monthly_count
+  era5:
+    name: 2m_temperature
+    frequency: hourly
+    transform:
+      - daily_max
+      - threshold_positive
+      - monthly_count
+
+
+- name: tropical_nights
+  units: nights above 20C per month
+  offset: -293.15   # absolute Kelvin minus 20 degrees
+  cmip5:
+    name: minimum_2m_temperature_in_the_last_24_hours
+    frequency: daily
+    transform: 
+      - threshold_positive
+      - monthly_count
+  era5:
+    name: 2m_temperature
+    frequency: hourly
+    transform:
+      - daily_min
+      - threshold_positive
+      - monthly_count
