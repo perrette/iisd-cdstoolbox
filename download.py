@@ -305,8 +305,28 @@ def main():
                         fig2 = plt.figure()
                         ax2 = plt.subplot(1, 1, 1)
 
-                # import view
-                if o.view_region or o.png_region:
+                if o.view_timeseries or o.png_timeseries:
+                    ax2.clear()
+                    ts = load_csv(v.csv_file)
+                    # convert units for easier reading of graphs
+                    ts.index = convert_time_units_series(ts.index, years=True)
+                    # ts.plot(ax=ax2, label=v.simulation_set)
+                    l, = ax2.plot(ts.index, ts.values, label=v.simulation_set)
+                    ax2.legend()
+                    ax2.set_xlabel(ts.index.name)
+                    ax2.set_ylabel(v.units)
+                    ax2.set_title(name)
+
+                    # add yearly mean as well
+                    if o.yearly_mean:
+                        yearly_mean = ts.rolling(12).mean()
+                        l2, = ax2.plot(ts.index[::12], yearly_mean[::12], alpha=1, linewidth=2, color=l.get_color())
+
+                    if o.png_timeseries:
+                        fig2.savefig(v.csv_file.replace('.csv', '.png'), dpi=o.dpi)
+
+                
+                def plot_region(ax1):
                     ax1.clear()
                     if not o.view_region and 'cb' in locals(): cb.remove()
                     if isinstance(v.datasets[0], ERA5):
@@ -333,26 +353,13 @@ def main():
                     if o.png_region:
                         fig1.savefig(v.csv_file.replace('.csv', '-region.png'), dpi=o.dpi)
 
+                if o.view_region or o.png_region:
+                    try:
+                        plot_region(ax1)
+                    except:
+                        logging.warning(f'failed to make map for {v.name}')
 
-                if o.view_timeseries or o.png_timeseries:
-                    ax2.clear()
-                    ts = load_csv(v.csv_file)
-                    # convert units for easier reading of graphs
-                    ts.index = convert_time_units_series(ts.index, years=True)
-                    # ts.plot(ax=ax2, label=v.simulation_set)
-                    l, = ax2.plot(ts.index, ts.values, label=v.simulation_set)
-                    ax2.legend()
-                    ax2.set_xlabel(ts.index.name)
-                    ax2.set_ylabel(v.units)
-                    ax2.set_title(name)
 
-                    # add yearly mean as well
-                    if o.yearly_mean:
-                        yearly_mean = ts.rolling(12).mean()
-                        l2, = ax2.plot(ts.index[::12], yearly_mean[::12], alpha=1, linewidth=2, color=l.get_color())
-
-                    if o.png_timeseries:
-                        fig2.savefig(v.csv_file.replace('.csv', '.png'), dpi=o.dpi)
 
             # all simulation sets on one figure
             if o.view_timeseries or o.png_timeseries:
