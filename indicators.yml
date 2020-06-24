@@ -73,7 +73,7 @@
   cmip5:
     name: near_surface_relative_humidity
 
-- name: minimum_daily_temperature
+- name: minimum_monthly_temperature
   units: degrees Celsius
   offset: -273.15
   cmip5:
@@ -86,7 +86,7 @@
       - monthly_mean
   bias-correction: offset
 
-- name: maximum_daily_temperature
+- name: maximum_monthly_temperature
   units: degrees Celsius
   offset: -273.15
   cmip5:
@@ -117,8 +117,7 @@
       - threshold_negative
       - monthly_count
 
-- name: minimum_daily_temperature_daily
-  description: same as minimum_daily_temperature but daily frequency
+- name: minimum_daily_temperature
   units: degrees Celsius
   offset: -273.15
   cmip5:
@@ -131,8 +130,7 @@
       - daily_min
   bias-correction: offset
 
-- name: maximum_daily_temperature_daily
-  description: same as maximum_daily_temperature but daily frequency
+- name: maximum_daily_temperature
   units: degrees Celsius
   offset: -273.15
   cmip5:
@@ -146,7 +144,6 @@
   bias-correction: offset
 
 - name: 2m_temperature_daily
-  description: same as 2m_temperature but daily frequency
   units: degrees Celsius
   offset: -273.15
   cmip5:

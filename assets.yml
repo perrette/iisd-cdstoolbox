@@ -8,8 +8,8 @@ energy:
 - 100m_wind_speed
 - relative_humidity
 - 2m_temperature_daily
-- maximum_daily_temperature_daily
-- minimum_daily_temperature_daily
+- maximum_daily_temperature
+- minimum_daily_temperature
 
 irrigation:
 - precipitation
@@ -18,8 +18,8 @@ irrigation:
 - evaporation
 - 10m_wind_speed
 - 2m_temperature_daily
-- maximum_daily_temperature_daily
-- minimum_daily_temperature_daily
+- maximum_daily_temperature
+- minimum_daily_temperature
 
 wastewater:
 - 2m_temperature
@@ -27,23 +27,23 @@ wastewater:
 - runoff
 - evaporation
 - 2m_temperature_daily
-- maximum_daily_temperature_daily
-- minimum_daily_temperature_daily
+- maximum_daily_temperature
+- minimum_daily_temperature
 
 nature:
 - 2m_temperature
 - precipitation
 - 2m_temperature_daily
-- maximum_daily_temperature_daily
-- minimum_daily_temperature_daily
+- maximum_daily_temperature
+- minimum_daily_temperature
 
 buildings:
 - 2m_temperature
 - precipitation
 - surface_solar_radiation
 - 2m_temperature_daily
-- maximum_daily_temperature_daily
-- minimum_daily_temperature_daily
+- maximum_daily_temperature
+- minimum_daily_temperature
 
 roads:
 - 2m_temperature
@@ -52,5 +52,5 @@ roads:
 - runoff
 - surface_solar_radiation
 - 2m_temperature_daily
-- maximum_daily_temperature_daily
-- minimum_daily_temperature_daily
+- maximum_daily_temperature
+- minimum_daily_temperature

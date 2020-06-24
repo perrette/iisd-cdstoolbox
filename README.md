@@ -160,7 +160,7 @@ where `T` and `TD` are provided as intermediary variables, to be used in `expres
 ERA5-hourly dataset can be retrieved via `frequency: hourly` field, and subsequently aggregated to monthly indicators 
 thanks to pre-defined functions `daily_max`, `daily_min`, `daily_mean`, `monthly_mean`, `yearly_mean`. For instance:
 
-	- name: maximum_daily_temperature
+	- name: maximum_monthly_temperature
 	  units: degrees Celsius
 	  offset: -273.15
 	  cmip5:
