@@ -208,8 +208,6 @@ def main():
     loc_folder = o.location.lower() if o.location else f'{o.lat}N-{o.lon}E' 
     asset_folder = o.asset if o.asset else 'all'
 
-    figures_created = False
-
     # loop over indicators
     vdef_by_name = {v['name'] : v for v in variables_def}
     for name in o.indicators:
@@ -270,6 +268,12 @@ def main():
 
         # download and convert to csv
         for v in variables:
+            folder = os.path.join(o.output, loc_folder, asset_folder, v.set_folder)
+            v.csv_file = os.path.join(folder, (v.alias or v.variable) + '.csv')
+
+            if os.path.exists(v.csv_file):
+                continue
+
             series = v.load_timeseries(o.lon, o.lat, overwrite=o.overwrite)
 
             bias_correction_method = vdef.get('bias-correction')
@@ -282,9 +286,7 @@ def main():
                 else:
                     series = correct_monthly_bias(series, era5, o.reference_period, bias_correction_method)
 
-            folder = os.path.join(o.output, loc_folder, asset_folder, v.set_folder)
             os.makedirs(folder, exist_ok=True)
-            v.csv_file = os.path.join(folder, (v.alias or v.variable) + '.csv')
             save_csv(series, v.csv_file)
 
 
@@ -303,23 +305,22 @@ def main():
             if o.view is None:
                 o.view = o.area
 
+            if o.view_region or o.png_region:
+                fig1 = plt.figure(num=1)
+
+            if o.view_timeseries or o.png_timeseries:
+                fig2 = plt.figure(num=2)
+                fig3 = plt.figure(num=3)
+
             for v in variables:
                 v0 = v.datasets[0]
-                if figures_created and not (o.view_region or o.view_timeseries):
-                    # reuse same figure (speed up)
-                    pass
-                else:
-                    figures_created = True
-                    if o.view_region or o.png_region:
-                        fig1 = plt.figure()
-                        ax1 = plt.subplot(1, 1, 1, **kwargs)
-
-                    if o.view_timeseries or o.png_timeseries:
-                        fig2 = plt.figure()
-                        ax2 = plt.subplot(1, 1, 1)
 
                 if o.view_timeseries or o.png_timeseries:
-                    ax2.clear()
+
+                    fig2 = plt.figure(num=2)
+                    plt.clf()
+                    ax2 = fig2.add_subplot(1, 1, 1)
+
                     ts = load_csv(v.csv_file)
                     # convert units for easier reading of graphs
                     ts.index = convert_time_units_series(ts.index, years=True)
@@ -339,15 +340,12 @@ def main():
                         fig2.savefig(v.csv_file.replace('.csv', '.png'), dpi=o.dpi)
 
                 
-                def plot_region(ax1=None, cb=None):
-                    if ax1 is None:
-                        fig1 = plt.figure()
-                        ax1 = plt.subplot(1, 1, 1, **kwargs)
-                    else:
-                        ax1.clear()
+                def plot_region():
 
-                    if cb is not None: 
-                        cb.remove()
+                    fig1 = plt.figure(num=1)
+                    plt.clf()
+                    ax1 = fig1.add_subplot(1, 1, 1, **kwargs)
+
                     if isinstance(v.datasets[0], ERA5):
                         y1, y2 = o.reference_period
                         roll = False
@@ -371,7 +369,6 @@ def main():
 
                     if o.png_region:
                         fig1.savefig(v.csv_file.replace('.csv', '-region.png'), dpi=o.dpi)
-                        plt.close(fig1)
 
                     return ax1, cb
 
@@ -385,8 +382,9 @@ def main():
 
             # all simulation sets on one figure
             if o.view_timeseries or o.png_timeseries:
-                ax2 = plt.gca()
-                ax2.clear()
+                fig3 = plt.figure(num=3)
+                plt.clf()
+                ax3 = fig3.add_subplot(1, 1, 1)
                 for v in variables:
                     ts = load_csv(v.csv_file)
                     ts.index = convert_time_units_series(ts.index, years=True)
@@ -396,26 +394,26 @@ def main():
                     else:
                         color = None
                         zorder = None
-                    l, = ax2.plot(ts.index, ts.values, alpha=0.5, label=v.simulation_set, linewidth=1 if o.yearly_mean else 2, color=color, zorder=zorder)
+                    l, = ax3.plot(ts.index, ts.values, alpha=0.5, label=v.simulation_set, linewidth=1 if o.yearly_mean else 2, color=color, zorder=zorder)
 
                     # add yearly mean as well
                     if o.yearly_mean:
                         yearly_mean = ts.rolling(12).mean()
-                        l2, = ax2.plot(ts.index[::12], yearly_mean[::12], alpha=1, linewidth=2, color=l.get_color(), zorder=zorder)
+                        l2, = ax3.plot(ts.index[::12], yearly_mean[::12], alpha=1, linewidth=2, color=l.get_color(), zorder=zorder)
 
-                ax2.legend(fontsize='xx-small')
-                ax2.set_ylabel(v.units)
-                ax2.set_xlabel(ts.index.name)
-                ax2.set_title(name)
-                # ax2.set_xlim(xmin=start_year, xmax=2100)
+                ax3.legend(fontsize='xx-small')
+                ax3.set_ylabel(v.units)
+                ax3.set_xlabel(ts.index.name)
+                ax3.set_title(name)
+                # ax3.set_xlim(xmin=start_year, xmax=2100)
 
-                mi, ma = ax2.get_xlim()
+                mi, ma = ax3.get_xlim()
                 if mi < 0:
-                    ax2.set_xlim(xmin=0)  # start at start_year (i.e. ERA5 start)
+                    ax3.set_xlim(xmin=0)  # start at start_year (i.e. ERA5 start)
 
                 if o.png_timeseries:
                     figname = os.path.join(o.output, loc_folder, asset_folder, 'all_'+name+'.png')
-                    fig2.savefig(figname, dpi=max(o.dpi, 300))
+                    fig3.savefig(figname, dpi=max(o.dpi, 300))
 
     if o.view_timeseries or o.view_region:
         plt.show()
