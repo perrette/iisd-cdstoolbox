@@ -337,7 +337,9 @@ def main():
                         l2, = ax2.plot(ts.index[::12], yearly_mean[::12], alpha=1, linewidth=2, color=l.get_color())
 
                     if o.png_timeseries:
-                        fig2.savefig(v.csv_file.replace('.csv', '.png'), dpi=o.dpi)
+                        figname = v.csv_file.replace('.csv', '.png') 
+                        if not os.path.exists(figname):
+                            fig2.savefig(figname, dpi=o.dpi)
 
                 
                 def plot_region():
@@ -368,7 +370,9 @@ def main():
                         ax1.coastlines(resolution='10m')
 
                     if o.png_region:
-                        fig1.savefig(v.csv_file.replace('.csv', '-region.png'), dpi=o.dpi)
+                        figname = v.csv_file.replace('.csv', '-region.png')
+                        if not os.path.exists(figname):
+                            fig1.savefig(figname, dpi=o.dpi)
 
                     return ax1, cb
 
@@ -413,7 +417,8 @@ def main():
 
                 if o.png_timeseries:
                     figname = os.path.join(o.output, loc_folder, asset_folder, 'all_'+name+'.png')
-                    fig3.savefig(figname, dpi=max(o.dpi, 300))
+                    if not os.path.exists(figname):
+                        fig3.savefig(figname, dpi=max(o.dpi, 300))
 
     if o.view_timeseries or o.view_region:
         plt.show()
