@@ -305,17 +305,13 @@ def main():
             if o.view is None:
                 o.view = o.area
 
-            if o.view_region or o.png_region:
-                fig1 = plt.figure(num=1)
-
-            if o.view_timeseries or o.png_timeseries:
-                fig2 = plt.figure(num=2)
-                fig3 = plt.figure(num=3)
-
             for v in variables:
                 v0 = v.datasets[0]
 
-                if o.view_timeseries or o.png_timeseries:
+                def plot_timeseries():
+                    figname = v.csv_file.replace('.csv', '.png') 
+                    if os.path.exists(figname):
+                        return
 
                     fig2 = plt.figure(num=2)
                     plt.clf()
@@ -337,12 +333,12 @@ def main():
                         l2, = ax2.plot(ts.index[::12], yearly_mean[::12], alpha=1, linewidth=2, color=l.get_color())
 
                     if o.png_timeseries:
-                        figname = v.csv_file.replace('.csv', '.png') 
-                        if not os.path.exists(figname):
-                            fig2.savefig(figname, dpi=o.dpi)
+                        fig2.savefig(figname, dpi=o.dpi)
 
-                
                 def plot_region():
+                    figname = v.csv_file.replace('.csv', '-region.png')
+                    if os.path.exists(figname):
+                        return
 
                     fig1 = plt.figure(num=1)
                     plt.clf()
@@ -370,22 +366,26 @@ def main():
                         ax1.coastlines(resolution='10m')
 
                     if o.png_region:
-                        figname = v.csv_file.replace('.csv', '-region.png')
-                        if not os.path.exists(figname):
-                            fig1.savefig(figname, dpi=o.dpi)
+                        fig1.savefig(figname, dpi=o.dpi)
 
-                    return ax1, cb
+                if o.view_timeseries or o.png_timeseries:
+                    plot_timeseries()
+                
 
                 if o.view_region or o.png_region:
                     try:
-                        ax1, cb = plot_region()
+                        plot_region()
                     except:
                         logging.warning(f'failed to make map for {v.name}')
 
 
 
             # all simulation sets on one figure
-            if o.view_timeseries or o.png_timeseries:
+            def plot_all_simulations():
+                figname = os.path.join(o.output, loc_folder, asset_folder, 'all_'+name+'.png')
+                if os.path.exists(figname):
+                    return
+
                 fig3 = plt.figure(num=3)
                 plt.clf()
                 ax3 = fig3.add_subplot(1, 1, 1)
@@ -416,9 +416,10 @@ def main():
                     ax3.set_xlim(xmin=0)  # start at start_year (i.e. ERA5 start)
 
                 if o.png_timeseries:
-                    figname = os.path.join(o.output, loc_folder, asset_folder, 'all_'+name+'.png')
-                    if not os.path.exists(figname):
-                        fig3.savefig(figname, dpi=max(o.dpi, 300))
+                    fig3.savefig(figname, dpi=max(o.dpi, 300))
+
+            if o.view_timeseries or o.png_timeseries:
+                plot_all_simulations()
 
     if o.view_timeseries or o.view_region:
         plt.show()
