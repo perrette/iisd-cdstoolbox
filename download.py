@@ -256,6 +256,18 @@ def main():
             logging.warning(f'no variable for {name}')
             continue
 
+        # download variables
+        try_variables = variables
+        variables = []
+        for v in try_variables:
+            try:
+                v.download()
+            except Exception as error:
+                print(error)
+                logging.warning(f'failed to download {v}')
+                continue
+            variables.append(v)
+
         # download and convert to csv
         for v in variables:
             series = v.load_timeseries(o.lon, o.lat, overwrite=o.overwrite)
@@ -264,7 +276,7 @@ def main():
 
             if o.bias_correction and isinstance(v.datasets[0], CMIP5) and bias_correction_method is not None:
                 era5 = v.reference.load_timeseries(o.lon, o.lat)
-                v.set_folder += '-unbiased'
+                #v.set_folder += '-unbiased'
                 if o.yearly_bias:
                     series = correct_yearly_bias(series, era5, o.reference_period, bias_correction_method)
                 else:
@@ -278,6 +290,7 @@ def main():
 
         if o.view_region or o.view_timeseries or o.png_region or o.png_timeseries:
             import matplotlib.pyplot as plt
+            cb = None
             try:
                 import cartopy
                 import cartopy.crs as ccrs
@@ -326,9 +339,15 @@ def main():
                         fig2.savefig(v.csv_file.replace('.csv', '.png'), dpi=o.dpi)
 
                 
-                def plot_region(ax1):
-                    ax1.clear()
-                    if not o.view_region and 'cb' in locals(): cb.remove()
+                def plot_region(ax1=None, cb=None):
+                    if ax1 is None:
+                        fig1 = plt.figure()
+                        ax1 = plt.subplot(1, 1, 1, **kwargs)
+                    else:
+                        ax1.clear()
+
+                    if cb is not None: 
+                        cb.remove()
                     if isinstance(v.datasets[0], ERA5):
                         y1, y2 = o.reference_period
                         roll = False
@@ -352,10 +371,13 @@ def main():
 
                     if o.png_region:
                         fig1.savefig(v.csv_file.replace('.csv', '-region.png'), dpi=o.dpi)
+                        plt.close(fig1)
+
+                    return ax1, cb
 
                 if o.view_region or o.png_region:
                     try:
-                        plot_region(ax1)
+                        ax1, cb = plot_region()
                     except:
                         logging.warning(f'failed to make map for {v.name}')
 

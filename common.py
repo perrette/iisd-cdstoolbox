@@ -65,6 +65,9 @@ class Indicator:
         result.attrs['units'] = self.units
         return result
 
+    def __repr__(self):
+        return f'{self.name} ({len(self.datasets)})'
+
 
 
 class Dataset:
@@ -259,7 +262,8 @@ class Dataset:
             try:
                 cube = self.transform(cube)
             except Exception as error:
-                logging.warning(f'{type(self)}, {self.variable}: transform failed: {error}. Skip.')
+                logging.error(f'{type(self)}, {self.variable}: transform failed: {error}. Skip.')
+                raise
 
         if self.units:
             cube.attrs['units'] = self.units  # enforce user-defined units if defined
