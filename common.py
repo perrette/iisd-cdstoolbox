@@ -72,6 +72,8 @@ class Indicator:
 
 class Dataset:
 
+    lon0 = None    # works with either [0, 360] or [-180, 180] syntax
+
     def __init__(self, dataset, params, downloaded_file, transform=None, units=None, frequency=None, sub_requests=None):
         self.dataset = dataset
         self.params = params
@@ -149,6 +151,22 @@ class Dataset:
             return self.get_varname(ds)
 
 
+    def _fixed_longitude(self, lon):
+        """transform [-180, 180] into [0, 360]"""
+        if self.lon0 is None:
+            return lon
+
+        if self.lon0 == 0:
+            if lon < 0:
+                return lon + 360
+
+        if self.lon0 == -180:
+            if lon >= 180:
+                return lon - 360
+
+        return lon
+
+
     def _extract_timeseries(self, f, lon, lat, transform=True):
         if not os.path.exists(self.downloaded_file):
             self.download()
@@ -165,7 +183,13 @@ class Dataset:
             interpolator = RegularGridInterpolator((londim, latdim[::-1]), region.values.T[:, ::-1])
         else:
             interpolator = RegularGridInterpolator((londim, latdim), region.values.T)
-        timeseries = interpolator(np.array((lon, lat)), method='linear').squeeze()
+        try:
+            timeseries = interpolator(np.array((lon, lat)), method='linear').squeeze()
+        except ValueError as error:
+            print("ERROR: requested lon, lat:", (lon, lat), "but bounds are londim", londim[[0, -1]].values, " and latdim", latdim[[0, -1]].values)
+            print("ERROR: This is likely an issue with the model grid as provided by Copernicus CDS.")
+            print("ERROR: Recommended solution: request a nearby location within the bounds or try other climate models.")
+            raise
 
         units = region.units # file
         series = pd.Series(timeseries, index=time, name=f'{self.variable} ({units})')
@@ -181,16 +205,24 @@ class Dataset:
             londim = ds[self.lon]
             latdim = ds[self.lat]
             l, r = londim[0].tolist(), londim[len(londim)-1].tolist()
-            b, t =latdim[0].tolist(), latdim[len(latdim)-1].tolist()
+            b, t = latdim[0].tolist(), latdim[len(latdim)-1].tolist()
+            # account for grid step
+            dlon = np.abs(londim[1] - londim[0])
+            l -= dlon/2
+            r += dlon/2
+            # dlat = np.abs(latdim[1] - latdim[0])
+            # for some reason lat_bnds seems to be such that the problem does not apply
+
         if b > t:
             b, t = t, b
+
         return t, l, b, r
 
 
     def _within_ncfile(self, f, lon, lat):
         ' check if lon, lat point is within the netCDFfile'
         t, l, b, r = self._nc_area(f)
-        # print(f, (l, r, b, t), lon, lat)
+        # print('within_ncfile debug', f, (l, r, b, t), lon, lat)
         if lon < l: return False
         if lon > r: return False
         if lat < b: return False
@@ -199,8 +231,9 @@ class Dataset:
 
 
     def extract_timeseries(self, lon, lat, transform=True):
+        lon = self._fixed_longitude(lon)
         files = [f for f in self.get_ncfiles() if self._within_ncfile(f, lon, lat)]
-        assert files, f'no file contains (lon, lat: {self.get_ncfiles()}'  # used only for tiled ERA5
+        assert files, f'no file contains (lon: {lon}, lat: {lat}): {self.get_ncfiles()}'  # used only for tiled ERA5
         return pd.concat([self._extract_timeseries(f, lon, lat, transform) for f in files])
 
 
@@ -212,11 +245,13 @@ class Dataset:
         return series
 
     def timeseries_file(self, lon, lat):
+        lon = self._fixed_longitude(lon)
         base, ext = os.path.splitext(self.downloaded_file)
         return base + f'_{lat}N_{lon}E.csv'
 
     def load_timeseries(self, lon, lat, overwrite=False):
         '''extract timeseries but buffer file...'''
+        lon = self._fixed_longitude(lon)
         fname = self.timeseries_file(lon, lat)
         if not os.path.exists(fname) or overwrite:
             timeseries = self.extract_timeseries(lon, lat, transform=False)
@@ -313,6 +348,7 @@ class CMIP5(Dataset):
 
     lon = 'lon'
     lat = 'lat'
+    lon0 = 0
 
     def __init__(self, variable, model, experiment, period=None, ensemble=None, historical=None, frequency=None, **kwargs):
         if ensemble is None:
@@ -382,6 +418,7 @@ class ERA5(Dataset):
 
     lon = 'longitude'
     lat = 'latitude'
+
 
     def __init__(self, variable, year=None, area=None, tiled=False, frequency=None, split_year=None, **kwargs):
         """
