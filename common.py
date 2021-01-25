@@ -71,7 +71,7 @@ class Indicator:
 
 
 class Dataset:
-    
+
     def __init__(self, dataset, params, downloaded_file, transform=None, units=None, frequency=None, sub_requests=None):
         self.dataset = dataset
         self.params = params
@@ -105,7 +105,7 @@ class Dataset:
             return
 
         if os.path.exists(self.downloaded_file) and not overwrite:
-            return 
+            return
 
         c = cdsapi.Client(timeout=timeout+2, wait_until_complete=wait_until_complete)
 
@@ -249,8 +249,8 @@ class Dataset:
 
         lat = cube.lat.values
 
-        # we want to deal with increasing lat            
-        if lat[1] < lat[0]: 
+        # we want to deal with increasing lat
+        if lat[1] < lat[0]:
             cube = cube.isel({'lat':slice(None, None, -1)})
             lat = cube.coords['lat'].values
             assert lat[1] > lat[0]
@@ -274,13 +274,13 @@ class Dataset:
 def roll_longitude(cube):
     ''' [0, 360] into [-180, 180] '''
     lon = cube.lon.values
-    if lon[-1] > 180: 
+    if lon[-1] > 180:
         # [0, 360] into [-180, 180]
         lon = np.where(lon <= 180, lon, lon - 360)
     else:
         # [-180, 180] into [0, 360]
         lon = np.where(lon >= 0, lon, lon + 360)
-    return cube.assign_coords(lon=lon).roll(lon=lon.size//2, roll_coords=True) 
+    return cube.assign_coords(lon=lon).roll(lon=lon.size//2, roll_coords=True)
 
 
 def select_area(cube, area):
@@ -332,16 +332,16 @@ class CMIP5(Dataset):
             if period is None:
                 period = ['185001-200512'] if experiment == 'historical' else ['200601-210012']
 
-        if type(period) is str: 
+        if type(period) is str:
             period = [period]
         periodstamp = period[0].split('-')[0] + '-' + period[-1].split('-')[-1]
 
         folder = os.path.join('download', dataset)
         name = f'{variable}-{model}-{experiment}-{periodstamp}-{ensemble}'
-        
+
         downloaded_file = os.path.join(folder, name+'.zip')
 
-        super().__init__(dataset, 
+        super().__init__(dataset,
             {
                 'variable': variable,
                 'model': model,
@@ -406,7 +406,7 @@ class ERA5(Dataset):
             product_type = 'monthly_averaged_reanalysis'
         else:
             raise ValueError(f'expected monthly or hourly frequency, got: {frequency}')
-        
+
         self.frequency = frequency
 
         folder = os.path.join('download', dataset, product_type)
@@ -463,8 +463,8 @@ def make_area(lon, lat, w):
 
 
 def tile_coords(dx=10, dy=5):
-    lons = np.arange(-180, 360, dx)  # tiles works for [-180, 180] as well as [0, 360]
-    lats = np.arange(-90, 90, dy)
+    lons = np.arange(-180, 360+dx, dx)  # tiles works for [-180, 180] as well as [0, 360]
+    lats = np.arange(-90, 90+dy, dy)
     return lons, lats
 
 
