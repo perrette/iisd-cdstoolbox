@@ -13,13 +13,13 @@ import yaml
 import datetime
 import cdsapi
 
-from common import (ERA5, CMIP5, Indicator,
+from common import (ERA5, CMIP6, Indicator,
     correct_yearly_bias, correct_monthly_bias, convert_time_units_series,
     save_csv, load_csv, era5_tile_area, make_area, cube_area)
 
 import transform
 
-from cmip5 import get_models_per_asset, get_models_per_indicator, get_all_models, cmip5 as cmip5_def
+from cmip6 import get_all_models
 
 transform_namespace = { name: getattr(transform, name) for name in transform.__all__ }
 
@@ -115,16 +115,17 @@ def main():
     locations = yaml.safe_load(open('locations.yml'))
     variables_def = yaml.safe_load(open('indicators.yml'))
     assets = yaml.safe_load(open('assets.yml'))
+    cmip6_yml = yaml.safe_load(open('cmip6.yml'))
 
     parser = argparse.ArgumentParser()
     # g = parser.add_argument_group('variables or asset')
     g = parser.add_mutually_exclusive_group(required=True)
     # g.add_argument('--era5', nargs='*', help='list of ERA5-monthly variables to download (original name, no correction)')
-    # g.add_argument('--cmip5', nargs='*', help='list of CMIP5-monthly variables to download')
+    # g.add_argument('--cmip6', nargs='*', help='list of CMIP6-monthly variables to download')
     g.add_argument('--indicators', nargs='*', default=[], choices=[vdef['name'] for vdef in variables_def], help='list of custom indicators to download')
     g.add_argument('--asset', choices=list(assets.keys()), help='pre-defined list of variables, defined in assets.yml (experimental)')
 
-    parser.add_argument('--dataset', choices=['era5', 'cmip5'], help='dataset in combination with for `--indicators` and `--asset`')
+    parser.add_argument('--dataset', choices=['era5', 'cmip6'], help='dataset in combination with for `--indicators` and `--asset`')
     parser.add_argument('-o', '--output', default='indicators', help='output directory, default: %(default)s')
     parser.add_argument('--overwrite',action='store_true', help=argparse.SUPPRESS)
 
@@ -145,16 +146,16 @@ def main():
     # g.add_argument('--year', nargs='+', default=list(range(1979, 2019+1)), help='ERA5 years to download, default: %(default)s')
     g.add_argument('--year', nargs='+', default=list(range(1979, 2019+1)), help=argparse.SUPPRESS)
 
-    g = parser.add_argument_group('CMIP5 control')
-    g.add_argument('--model', nargs='*', default=['ipsl_cm5a_mr'], choices=get_all_models())
-    g.add_argument('--experiment', nargs='*', choices=['rcp_2_6', 'rcp_4_5', 'rcp_6_0', 'rcp_8_5'], default=['rcp_8_5'])
-    g.add_argument('--period', default=None, help=argparse.SUPPRESS) # all CMIP5 models and future experiements share the same parameter...
-    # g.add_argument('--historical', action='store_true', help='this flag provokes downloading historical data as well and extend back the CMIP5 timeseries to 1979')
+    g = parser.add_argument_group('CMIP6 control')
+    g.add_argument('--model', nargs='*', default=['mpi_esm1_2_lr'], choices=get_all_models())
+    g.add_argument('--experiment', nargs='*', choices=cmip6_yml["experiments"], default=['ssp5_8_5'])
+    g.add_argument('--period', default=None, help=argparse.SUPPRESS) # all CMIP6 models and future experiements share the same parameter...
+    # g.add_argument('--historical', action='store_true', help='this flag provokes downloading historical data as well and extend back the CMIP6 timeseries to 1979')
     g.add_argument('--historical', action='store_true', default=True, help=argparse.SUPPRESS)
     g.add_argument('--no-historical', action='store_false', dest='historical', help=argparse.SUPPRESS)
-    # g.add_argument('--bias-correction', action='store_true', help='align CMIP5 variables with matching ERA5')
+    # g.add_argument('--bias-correction', action='store_true', help='align CMIP6 variables with matching ERA5')
     g.add_argument('--bias-correction', action='store_true', default=True, help=argparse.SUPPRESS)
-    g.add_argument('--no-bias-correction', action='store_false', dest='bias_correction', help='suppress bias-correction for CMIP5 data')
+    g.add_argument('--no-bias-correction', action='store_false', dest='bias_correction', help='suppress bias-correction for CMIP6 data')
     g.add_argument('--reference-period', default=[1979, 2019], nargs=2, type=int, help='reference period for bias correction (default: %(default)s)')
     g.add_argument('--yearly-bias', action='store_true', help='yearly instead of monthly bias correction')
 
@@ -229,25 +230,25 @@ def main():
         if not o.dataset or o.dataset == 'era5' or o.bias_correction:
             variables.append(era5)
 
-        vdef2 = vdef.get('cmip5',{})
+        vdef2 = vdef.get('cmip6',{})
         transform = Transform(vdef2.get('scale', 1), vdef2.get('offset', 0))
 
-        if not o.dataset or o.dataset == 'cmip5':
+        if not o.dataset or o.dataset == 'cmip6':
             for model in o.model:
-                labels = {'rcp_8_5': 'RCP 8.5', 'rcp_4_5': 'RCP 4.5', 'rcp_6_0': 'RCP 6', 'rcp_2_6': 'RCP 2.6'}
+                labels = {x: "{}-{}.{}".format(*x.split("_")) for x in cmip6_yml["experiments"]}
                 if o.historical:
                     historical_kwargs = dict(model=model, experiment='historical', period=None)
-                    historical = parse_indicator(CMIP5, defs=vdef2, cls_kwargs=historical_kwargs, **indicator_def)
+                    historical = parse_indicator(CMIP6, defs=vdef2, cls_kwargs=historical_kwargs, **indicator_def)
                 else:
                     historical = None
                 for experiment in o.experiment:
-                    cmip5_kwargs = dict(model=model, experiment=experiment, period=o.period, historical=historical)
-                    cmip5 = parse_indicator(CMIP5, defs=vdef2, cls_kwargs=cmip5_kwargs, **indicator_def)
-                    cmip5.reference = era5
-                    cmip5.simulation_set = f'CMIP5 - {labels.get(experiment, experiment)} - {model}'
-                    cmip5.set_folder = f'cmip5-{model}-{experiment}'
-                    cmip5.alias = name
-                    variables.append(cmip5)
+                    cmip6_kwargs = dict(model=model, experiment=experiment, period=o.period, historical=historical)
+                    cmip6 = parse_indicator(CMIP6, defs=vdef2, cls_kwargs=cmip6_kwargs, **indicator_def)
+                    cmip6.reference = era5
+                    cmip6.simulation_set = f'CMIP6 - {labels.get(experiment, experiment)} - {model}'
+                    cmip6.set_folder = f'cmip6-{model}-{experiment}'
+                    cmip6.alias = name
+                    variables.append(cmip6)
 
 
         if not variables:
@@ -278,7 +279,7 @@ def main():
 
             bias_correction_method = vdef.get('bias-correction')
 
-            if o.bias_correction and isinstance(v.datasets[0], CMIP5) and bias_correction_method is not None:
+            if o.bias_correction and isinstance(v.datasets[0], CMIP6) and bias_correction_method is not None:
                 era5 = v.reference.load_timeseries(o.lon, o.lat)
                 #v.set_folder += '-unbiased'
                 if o.yearly_bias:
