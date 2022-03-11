@@ -100,6 +100,7 @@
       - surface_air_pressure
     expression: 0.263 * surface_air_pressure * near_surface_specific_humidity / exp(17.67 * (T - 273.15) / (T - 29.65))
     mapping: {T: near_surface_air_temperature}
+  bias-correction: scale
 
 - name: minimum_monthly_temperature
   units: degrees Celsius
