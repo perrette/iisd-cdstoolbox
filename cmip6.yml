@@ -1,27 +1,27 @@
 variables:
-- air_temperature
-- capacity_of_soil_to_store_water
+# - air_temperature
+# - capacity_of_soil_to_store_water
 - daily_maximum_near_surface_air_temperature
 - daily_minimum_near_surface_air_temperature
 - eastward_near_surface_wind
-- eastward_wind
+# - eastward_wind
 - evaporation_including_sublimation_and_transpiration
-- geopotential_height
-- grid_cell_area_for_atmospheric_grid_variables
-- grid_cell_area_for_ocean_variables
-- land_ice_area_percentage
+# - geopotential_height
+# - grid_cell_area_for_atmospheric_grid_variables
+# - grid_cell_area_for_ocean_variables
+# - land_ice_area_percentage
 - moisture_in_upper_portion_of_soil_column
 - near_surface_air_temperature
 - near_surface_relative_humidity
 - near_surface_specific_humidity
 - near_surface_wind_speed
 - northward_near_surface_wind
-- northward_wind
-- percentage_of_the_grid_cell_occupied_by_land_including_lakes
+# - northward_wind
+# - percentage_of_the_grid_cell_occupied_by_land_including_lakes
 - precipitation
-- relative_humidity
-- sea_area_percentage
-- sea_floor_depth_below_geoid
+# - relative_humidity
+# - sea_area_percentage
+# - sea_floor_depth_below_geoid
 - sea_ice_thickness
 - sea_level_pressure
 - sea_surface_height_above_geoid
@@ -31,9 +31,9 @@ variables:
 - sea_ice_mass_per_area
 - snow_depth
 - snowfall_flux
-- specific_humidity
+# - specific_humidity
 - surface_air_pressure
-- surface_altitude
+# - surface_altitude
 - surface_downward_eastward_wind_stress
 - surface_downward_northward_wind_stress
 - surface_downwelling_longwave_radiation
