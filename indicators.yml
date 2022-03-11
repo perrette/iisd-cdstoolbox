@@ -12,6 +12,8 @@
     name: mean_total_precipitation_rate
   cmip5:
     name: mean_precipitation_flux
+  cmip6:
+    name: precipitation
   bias-correction: percent
 
 - name: runoff
@@ -22,6 +24,8 @@
     name: mean_runoff_rate
   cmip5:
     name: runoff
+  cmip6:
+    name: total_runoff
   bias-correction: percent
 
 - name: evaporation
@@ -32,6 +36,9 @@
     scale: -2592000  # change sign, mm / month
   cmip5:
     name: evaporation
+    scale: 2592000  # mm/s to mm / month
+  cmip6:
+    name: evaporation_including_sublimation_and_transpiration
     scale: 2592000  # mm/s to mm / month
   bias-correction: percent
 
@@ -51,6 +58,9 @@
   cmip5:
     name: 10m_wind_speed
     scale: 1.6  # average scaling from 10m to 100m, based on one test location (approximate!)
+  cmip6:
+    name: near_surface_wind_speed
+    scale: 1.6  # average scaling from 10m to 100m, based on one test location (approximate!)
   bias-correction: scale
 
 - name: surface_solar_radiation
@@ -61,6 +71,8 @@
     name: mean_surface_downward_short_wave_radiation_flux
   cmip5:
     name: surface_solar_radiation_downwards
+  cmip6:
+    name: surface_downwelling_shortwave_radiation
 
 - name: relative_humidity
   units: '%'
@@ -72,12 +84,16 @@
     mapping: {T: _2m_temperature - 273.15, TD: _2m_dewpoint_temperature - 273.15}
   cmip5:
     name: near_surface_relative_humidity
+  cmip6:
+    name: near_surface_relative_humidity
 
 - name: minimum_monthly_temperature
   units: degrees Celsius
   offset: -273.15
   cmip5:
     name: minimum_2m_temperature_in_the_last_24_hours
+  cmip6:
+    name: daily_minimum_near_surface_air_temperature
   era5:
     name: 2m_temperature
     frequency: hourly
@@ -91,6 +107,8 @@
   offset: -273.15
   cmip5:
     name: maximum_2m_temperature_in_the_last_24_hours
+  cmip6:
+    name: daily_maximum_near_surface_air_temperature
   era5:
     name: 2m_temperature
     frequency: hourly
@@ -108,6 +126,13 @@
     transform: 
       - threshold_negative
       - monthly_count
+  cmip6:
+    name: daily_minimum_near_surface_air_temperature
+    frequency: daily
+    offset: -273.15
+    transform:
+      - threshold_negative
+      - monthly_count
   era5:
     name: 2m_temperature
     frequency: hourly
@@ -123,6 +148,9 @@
   cmip5:
     name: minimum_2m_temperature_in_the_last_24_hours
     frequency: daily
+  cmip6:
+    name: daily_minimum_near_surface_air_temperature
+    frequency: daily
   era5:
     name: 2m_temperature
     frequency: hourly
@@ -136,6 +164,9 @@
   cmip5:
     name: maximum_2m_temperature_in_the_last_24_hours
     frequency: daily
+  cmip6:
+    name: daily_maximum_near_surface_air_temperature
+    frequency: daily
   era5:
     name: 2m_temperature
     frequency: hourly
@@ -148,6 +179,9 @@
   offset: -273.15
   cmip5:
     name: 2m_temperature
+    frequency: daily
+  cmip6:
+    name: near_surface_air_temperature
     frequency: daily
   era5:
     name: 2m_temperature
@@ -163,6 +197,12 @@
     name: maximum_2m_temperature_in_the_last_24_hours
     frequency: daily
     transform: 
+      - threshold_positive
+      - monthly_count
+  cmip6:
+    name: daily_maximum_near_surface_air_temperature
+    frequency: daily
+    transform:
       - threshold_positive
       - monthly_count
   era5:
@@ -181,6 +221,12 @@
     name: minimum_2m_temperature_in_the_last_24_hours
     frequency: daily
     transform: 
+      - threshold_positive
+      - monthly_count
+  cmip6:
+    name: daily_minimum_near_surface_air_temperature
+    frequency: daily
+    transform:
       - threshold_positive
       - monthly_count
   era5:

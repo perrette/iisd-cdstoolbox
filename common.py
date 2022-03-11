@@ -414,6 +414,73 @@ class CMIP5(Dataset):
         return [os.path.join(self.folder, name) for name in listOfiles]
 
 
+class CMIP6(Dataset):
+
+    lon = 'lon'
+    lat = 'lat'
+    lon0 = 0
+
+    def __init__(self, variable, model, experiment, date=None, historical=None, frequency=None, **kwargs):
+        # if ensemble is None:
+        #     ensemble = 'r1i1p1'
+
+        if frequency is None:
+            frequency = 'monthly'
+        self.frequency = frequency
+
+        dataset = 'projections-cmip6'
+
+        date = ['1900-12-01/2014-12-31'] if experiment == 'historical' else ['2015-01-01/2100-12-31']
+
+        if date is str:
+            date = [date]
+        datestamp = date[0].split("/")[0].replace("-","") + '-' + date[-1].split("/")[1].replace("-","")
+
+        folder = os.path.join('download', dataset)
+        name = f'{variable}-{model}-{experiment}-{datestamp}'
+
+        downloaded_file = os.path.join(folder, name+'.zip')
+
+        super().__init__(dataset,
+            {
+                'temporal_resolution': frequency,
+                'experiment': experiment,
+                'level': 'single_levels',
+                'variable': variable,
+                'model': model,
+                'date': date,
+                #'area': area,
+                # 'ensemble_member': ensemble,
+                'format': 'zip',
+            }, downloaded_file, **kwargs)
+
+        self.historical = historical
+
+
+    def load_timeseries(self, *args, **kwargs):
+        series = super().load_timeseries(*args, **kwargs)
+        if self.historical is None:
+            return series
+        historical = self.historical.load_timeseries(*args, **kwargs)
+        return pd.concat([historical, series]) #TODO: check name and units
+
+
+    def get_ncfiles(self):
+        # download zip file
+        if not os.path.exists(self.downloaded_file):
+            self.download()
+
+        # extract all files if necessary
+        with zipfile.ZipFile(self.downloaded_file, 'r') as zipObj:
+            listOfiles = sorted(zipObj.namelist())
+
+            if not os.path.exists(os.path.join(self.folder, listOfiles[0])):
+                print('Extracting all files...')
+                zipObj.extractall(path=self.folder)
+
+        return [os.path.join(self.folder, name) for name in listOfiles]
+
+
 class ERA5(Dataset):
 
     lon = 'longitude'
