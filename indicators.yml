@@ -3,6 +3,8 @@
   description: 2-m air temperature
   offset: -273.15  # Kelvin to degrees C
   bias-correction: offset
+  cmip6:
+    name: near_surface_air_temperature
 
 - name: precipitation
   units: mm per month
@@ -46,6 +48,8 @@
   units: m / s
   description: Wind speed magnitude at 10 m
   bias-correction: scale
+  cmip6:
+    name: near_surface_wind_speed
 
 - name: 100m_wind_speed
   units: m / s
@@ -85,7 +89,17 @@
   cmip5:
     name: near_surface_relative_humidity
   cmip6:
-    name: near_surface_relative_humidity
+    # name: near_surface_relative_humidity
+    # most models provide specific humidity, but few provide relative humidity
+    # (with the exception of CanESM5 (Canada) and GIS-E2-1-G (USA))
+    # try to retrieve relative humidity from specific humidity instead
+    # source: https://earthscience.stackexchange.com/a/2361
+    compose:
+      - near_surface_air_temperature
+      - near_surface_specific_humidity
+      - surface_air_pressure
+    expression: 0.263 * surface_air_pressure * near_surface_specific_humidity / exp(17.67 * (T - 273.15) / (T - 29.65))
+    mapping: {T: near_surface_air_temperature}
 
 - name: minimum_monthly_temperature
   units: degrees Celsius

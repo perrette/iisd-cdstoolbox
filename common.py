@@ -457,14 +457,23 @@ class CMIP6(Dataset):
                 'format': 'zip',
             }, downloaded_file, **kwargs)
 
+        # initialize an `historical` attribute
+        if historical is True:
+            historical = CMIP6(variable, model, "historical", date, frequency=frequency, period=period, **kwargs)
+        elif historical is False:
+            historical = None
+
         self.historical = historical
 
 
     def load_timeseries(self, *args, **kwargs):
         series = super().load_timeseries(*args, **kwargs)
+
         if self.historical is None:
             return series
+
         historical = self.historical.load_timeseries(*args, **kwargs)
+
         return pd.concat([historical, series]) #TODO: check name and units
 
 

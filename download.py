@@ -64,9 +64,10 @@ class ComposeIndicator(Indicator):
         kwargs = {'_'+dataset.variable if dataset.variable.startswith(tuple(str(i) for i in range(10))) else dataset.variable: value for dataset, value in zip(self.datasets, values)}
         # add numpy function (exp etc...)
         kwargs.update(vars(np))
-        # add indicators ?
-        # import indicator
-        # kwargs.update(vars(indicator))
+        # kwargs["exp"] = np.exp
+        # kwargs["log"] = np.log
+        # kwargs["sqrt"] = np.sqrt
+
         # allow aliases
         for short, expression in self.mapping.items():
             assert short not in kwargs, f'{short} already exists, cannot be used as alias (mapping)'
@@ -237,18 +238,19 @@ def main():
         if not o.dataset or o.dataset == 'cmip6':
             for model in o.model:
                 labels = {x: "{}-{}.{}".format(*x.split("_")) for x in cmip6_yml["experiments"]}
-                if o.historical:
-                    historical_kwargs = dict(model=model, experiment='historical')
-                    historical = parse_indicator(CMIP6, defs=vdef2, cls_kwargs=historical_kwargs, **indicator_def)
-                else:
-                    historical = None
+                # if o.historical:
+                #     historical_kwargs = dict(model=model, experiment='historical')
+                #     historical = parse_indicator(CMIP6, defs=vdef2, cls_kwargs=historical_kwargs, **indicator_def)
+                # else:
+                #     historical = None
                 for experiment in o.experiment:
-                    cmip6_kwargs = dict(model=model, experiment=experiment, historical=historical)
+                    cmip6_kwargs = dict(model=model, experiment=experiment, historical=o.historical)
                     cmip6 = parse_indicator(CMIP6, defs=vdef2, cls_kwargs=cmip6_kwargs, **indicator_def)
                     cmip6.reference = era5
                     cmip6.simulation_set = f'CMIP6 - {labels.get(experiment, experiment)} - {model}'
                     cmip6.set_folder = f'cmip6-{model}-{experiment}'
                     cmip6.alias = name
+                    # print("indicator variable", experiment, [d.name for d in cmip6.datasets])
                     variables.append(cmip6)
 
 
