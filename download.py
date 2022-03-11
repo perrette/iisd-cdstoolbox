@@ -94,6 +94,7 @@ def parse_dataset(cls, name, scale=1, offset=0, defs={}, cls_kwargs={}):
 def parse_indicator(cls, name, units=None, description=None, scale=1, offset=0, defs={}, cls_kwargs={}):
     """parse indicator from indicators.yml
     """
+    defs = defs.copy() # otherwise any update to defs propagates to the caller
     if 'compose' in defs:
         assert 'expression' in defs, f'{name}: expression must be provided for composed indicator (indicators.yml)'
         assert 'name' not in defs, f'{name}: cannot provide both "compose" and "name" (indicators.yml)'
@@ -149,7 +150,7 @@ def main():
     g = parser.add_argument_group('CMIP6 control')
     g.add_argument('--model', nargs='*', default=['mpi_esm1_2_lr'], choices=get_all_models())
     g.add_argument('--experiment', nargs='*', choices=cmip6_yml["experiments"], default=['ssp5_8_5'])
-    g.add_argument('--period', default=None, help=argparse.SUPPRESS) # all CMIP6 models and future experiements share the same parameter...
+    # g.add_argument('--period', default=None, help=argparse.SUPPRESS) # all CMIP6 models and future experiements share the same parameter...
     # g.add_argument('--historical', action='store_true', help='this flag provokes downloading historical data as well and extend back the CMIP6 timeseries to 1979')
     g.add_argument('--historical', action='store_true', default=True, help=argparse.SUPPRESS)
     g.add_argument('--no-historical', action='store_false', dest='historical', help=argparse.SUPPRESS)
@@ -237,12 +238,12 @@ def main():
             for model in o.model:
                 labels = {x: "{}-{}.{}".format(*x.split("_")) for x in cmip6_yml["experiments"]}
                 if o.historical:
-                    historical_kwargs = dict(model=model, experiment='historical', period=None)
+                    historical_kwargs = dict(model=model, experiment='historical')
                     historical = parse_indicator(CMIP6, defs=vdef2, cls_kwargs=historical_kwargs, **indicator_def)
                 else:
                     historical = None
                 for experiment in o.experiment:
-                    cmip6_kwargs = dict(model=model, experiment=experiment, period=o.period, historical=historical)
+                    cmip6_kwargs = dict(model=model, experiment=experiment, historical=historical)
                     cmip6 = parse_indicator(CMIP6, defs=vdef2, cls_kwargs=cmip6_kwargs, **indicator_def)
                     cmip6.reference = era5
                     cmip6.simulation_set = f'CMIP6 - {labels.get(experiment, experiment)} - {model}'

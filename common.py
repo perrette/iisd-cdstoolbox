@@ -420,7 +420,7 @@ class CMIP6(Dataset):
     lat = 'lat'
     lon0 = 0
 
-    def __init__(self, variable, model, experiment, date=None, historical=None, frequency=None, **kwargs):
+    def __init__(self, variable, model, experiment, date=None, historical=None, frequency=None, period=None, **kwargs):
         # if ensemble is None:
         #     ensemble = 'r1i1p1'
 
@@ -429,6 +429,9 @@ class CMIP6(Dataset):
         self.frequency = frequency
 
         dataset = 'projections-cmip6'
+
+        if period:
+            raise DeprecationError("`period` is not an argument of the CMIP6 class. `date` is determined automatically")
 
         date = ['1900-12-01/2014-12-31'] if experiment == 'historical' else ['2015-01-01/2100-12-31']
 
@@ -472,7 +475,7 @@ class CMIP6(Dataset):
 
         # extract all files if necessary
         with zipfile.ZipFile(self.downloaded_file, 'r') as zipObj:
-            listOfiles = sorted(zipObj.namelist())
+            listOfiles = sorted([f for f in zipObj.namelist() if f.endswith(".nc")])
 
             if not os.path.exists(os.path.join(self.folder, listOfiles[0])):
                 print('Extracting all files...')
