@@ -401,7 +401,8 @@ class CMIP5(Dataset):
     def get_ncfiles(self):
         # download zip file
         if not os.path.exists(self.downloaded_file):
-            self.download()
+            raise FileNotFoundError(f"Not found: {self.downloaded_file}")
+            # self.download()
 
         # extract all files if necessary
         with zipfile.ZipFile(self.downloaded_file, 'r') as zipObj:
@@ -486,7 +487,8 @@ class CMIP6(Dataset):
     def get_ncfiles(self):
         # download zip file
         if not os.path.exists(self.downloaded_file):
-            self.download()
+            raise FileNotFoundError(f"Not found: {self.downloaded_file}")
+            # self.download()
 
         # extract all files if necessary
         with zipfile.ZipFile(self.downloaded_file, 'r') as zipObj:
@@ -562,7 +564,8 @@ class ERA5(Dataset):
 
     def get_ncfiles(self):
         if not os.path.exists(self.downloaded_file):
-            self.download()
+            raise FileNotFoundError(f"Not found: {self.downloaded_file}")
+            # self.download()
 
         if self.sub_requests:
             ncfiles = []
