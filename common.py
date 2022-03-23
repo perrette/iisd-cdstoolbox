@@ -500,6 +500,13 @@ class CMIP6(Dataset):
 
         return [os.path.join(self.folder, name) for name in listOfiles]
 
+    def download(self):
+        super().download()
+
+        if self.historical is not None:
+            self.historical.download()
+
+
 
 class ERA5(Dataset):
 
