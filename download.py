@@ -325,6 +325,24 @@ def main():
             save_csv(series, v.csv_file)
 
 
+        if o.ensemble:
+            ensemble_files = {}
+
+            for experiment in o.experiment:
+                ensemble_variables = [v for v in variables if isinstance(v.datasets[0], CMIP6) and v.datasets[0].experiment == experiment]
+                df = pd.DataFrame({v.model:load_csv(v.csv_file) for v in ensemble_variables})
+                median = df.median(axis=1)
+                lower = df.quantile(.05, axis=1)
+                upper = df.quantile(.95, axis=1)
+                df["median"] = median
+                df["lower"] = lower
+                df["upper"] = upper
+                first = ensemble_variables[0]
+                folder = os.path.join(o.output, loc_folder, asset_folder, first.set_folder.replace(first.model, "ensemble"))
+                csv_file = os.path.join(folder, first.alias or first.name)  + '.csv'
+                ensemble_files[experiment] = csv_file
+                save_csv(df, csv_file)
+
         if o.view_region or o.view_timeseries or o.png_region or o.png_timeseries:
             import matplotlib.pyplot as plt
             cb = None
@@ -433,12 +451,31 @@ def main():
                     else:
                         color = None
                         zorder = None
-                    l, = ax3.plot(ts.index, ts.values, alpha=0.5, label=v.simulation_set, linewidth=1 if o.yearly_mean else 2, color=color, zorder=zorder)
 
-                    # add yearly mean as well
+                    # add yearly mean instead of monthly mean
                     if o.yearly_mean:
                         yearly_mean = ts.rolling(12).mean()
-                        l2, = ax3.plot(ts.index[::12], yearly_mean[::12], alpha=1, linewidth=2, color=l.get_color(), zorder=zorder)
+                        x = ts.index[::12]
+                        y = yearly_mean[::12]
+                    else:
+                        x = ts.index
+                        y = ts.values
+
+                    l, = ax3.plot(x, y, alpha=0.5 if o.ensemble else 1, label=v.simulation_set, linewidth=1 if o.ensemble else 2, color=color, zorder=zorder)
+
+                # Add ensemble mean
+                if o.ensemble:
+                    for experiment in ensemble_files:
+                        ts = load_csv(ensemble_files[experiment].csv_file)["median"]
+                        if o.yearly_mean:
+                            yearly_mean = ts.rolling(12).mean()
+                            x = ts.index[::12]
+                            y = yearly_mean[::12]
+                        else:
+                            x = ts.index
+                            y = ts.values
+
+                        ax3.plot(x, y, alpha=1, label=f"{experiment} (median)", linewidth=2, zorder=4)
 
                 ax3.legend(fontsize='xx-small')
                 ax3.set_ylabel(v.units)
