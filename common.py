@@ -465,7 +465,7 @@ class CMIP6(Dataset):
 
         # initialize an `historical` attribute
         if historical is True:
-            historical = CMIP6(variable, model, "historical", date, frequency=frequency, period=period, **kwargs)
+            historical = CMIP6(variable, model, "historical", date, frequency=frequency, period=period, area=area, **kwargs)
         elif historical is False:
             historical = None
 
