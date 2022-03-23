@@ -141,7 +141,7 @@ def main():
     g.add_argument('--tiled', action='store_true', help=argparse.SUPPRESS)
     g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help=argparse.SUPPRESS)
     #g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help='ERA5 tile in degress lon, lat (%(default)s by default)')
-    g.add_argument('--area', nargs=4, type=float, help='area for ERA5 data download as four numbers: top, left, bottom, right (CDS convention)')
+    g.add_argument('--area', nargs=4, type=float, help='area as four numbers: top, left, bottom, right (CDS convention)')
     g.add_argument('--view', nargs=4, type=float, help='area for plot as four numbers: top, left, bottom, right (CDS convention)')
 
     g = parser.add_argument_group('ERA5 control')
@@ -244,7 +244,7 @@ def main():
                 # else:
                 #     historical = None
                 for experiment in o.experiment:
-                    cmip6_kwargs = dict(model=model, experiment=experiment, historical=o.historical)
+                    cmip6_kwargs = dict(model=model, experiment=experiment, historical=o.historical, area=o.area)
                     cmip6 = parse_indicator(CMIP6, defs=vdef2, cls_kwargs=cmip6_kwargs, **indicator_def)
                     cmip6.reference = era5
                     cmip6.simulation_set = f'CMIP6 - {labels.get(experiment, experiment)} - {model}'

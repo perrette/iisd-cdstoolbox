@@ -420,13 +420,14 @@ class CMIP6(Dataset):
     lat = 'lat'
     lon0 = 0
 
-    def __init__(self, variable, model, experiment, date=None, historical=None, frequency=None, period=None, **kwargs):
+    def __init__(self, variable, model, experiment, date=None, historical=None, frequency=None, period=None, area=None, **kwargs):
         # if ensemble is None:
         #     ensemble = 'r1i1p1'
 
         if frequency is None:
             frequency = 'monthly'
         self.frequency = frequency
+
 
         dataset = 'projections-cmip6'
 
@@ -439,8 +440,13 @@ class CMIP6(Dataset):
             date = [date]
         datestamp = date[0].split("/")[0].replace("-","") + '-' + date[-1].split("/")[1].replace("-","")
 
+
         folder = os.path.join('download', dataset)
         name = f'{variable}-{model}-{experiment}-{datestamp}'
+
+        if area is not None:
+            area = np.array(area).tolist() # be sure it is json serializable
+            name += "_" + f'{area[0]}-{area[1]}E-{area[2]}-{area[3]}N'
 
         downloaded_file = os.path.join(folder, name+'.zip')
 
@@ -452,7 +458,7 @@ class CMIP6(Dataset):
                 'variable': variable,
                 'model': model,
                 'date': date,
-                #'area': area,
+                'area': area,
                 # 'ensemble_member': ensemble,
                 'format': 'zip',
             }, downloaded_file, **kwargs)
