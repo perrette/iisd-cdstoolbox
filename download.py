@@ -182,7 +182,7 @@ def main():
     g.add_argument('--year', nargs='+', default=list(range(1979, 2019+1)), help=argparse.SUPPRESS)
 
     g = parser.add_argument_group('CMIP6 control')
-    g.add_argument('--model', nargs='*', default=['mpi_esm1_2_lr'], choices=get_all_models())
+    g.add_argument('--model', nargs='*', default=None, choices=get_all_models())
     g.add_argument('--experiment', nargs='*', choices=cmip6_yml["experiments"], default=['ssp5_8_5'])
     # g.add_argument('--period', default=None, help=argparse.SUPPRESS) # all CMIP6 models and future experiements share the same parameter...
     # g.add_argument('--historical', action='store_true', help='this flag provokes downloading historical data as well and extend back the CMIP6 timeseries to 1979')
@@ -193,6 +193,7 @@ def main():
     g.add_argument('--no-bias-correction', action='store_false', dest='bias_correction', help='suppress bias-correction for CMIP6 data')
     g.add_argument('--reference-period', default=[1979, 2019], nargs=2, type=int, help='reference period for bias correction (default: %(default)s)')
     g.add_argument('--yearly-bias', action='store_true', help='yearly instead of monthly bias correction')
+    g.add_argument('--ensemble', action='store_true', help='Download all models and consider the median')
 
 
     g = parser.add_argument_group('visualization')
@@ -243,6 +244,12 @@ def main():
     # folder structure for CSV results
     loc_folder = o.location.lower() if o.location else f'{o.lat}N-{o.lon}E' 
     asset_folder = o.asset if o.asset else 'all'
+
+    if o.model is None:
+        if o.ensemble:
+            o.model = get_all_models()
+        else:
+            o.model = 'mpi_esm1_2_lr'
 
     # loop over indicators
     vdef_by_name = {v['name'] : v for v in variables_def}
