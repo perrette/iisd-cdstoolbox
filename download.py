@@ -307,6 +307,7 @@ def main():
             v.csv_file = os.path.join(folder, (v.alias or v.variable) + '.csv')
 
             if os.path.exists(v.csv_file):
+                print("Already exitst:",v.csv_file)
                 continue
 
             series = v.load_timeseries(o.lon, o.lat, overwrite=o.overwrite)
@@ -322,6 +323,7 @@ def main():
                     series = correct_monthly_bias(series, era5, o.reference_period, bias_correction_method)
 
             os.makedirs(folder, exist_ok=True)
+            print("Save to",v.csv_file)
             save_csv(series, v.csv_file)
 
 
@@ -341,6 +343,7 @@ def main():
                 folder = os.path.join(o.output, loc_folder, asset_folder, first.set_folder.replace(first.model, "ensemble"))
                 csv_file = os.path.join(folder, first.alias or first.name)  + '.csv'
                 ensemble_files[experiment] = csv_file
+                print("Save to",csv_file)
                 save_csv(df, csv_file)
 
         if o.view_region or o.view_timeseries or o.png_region or o.png_timeseries:
@@ -358,76 +361,79 @@ def main():
             if o.view is None:
                 o.view = o.area
 
-            for v in variables:
+            def plot_timeseries(v):
+                figname = v.csv_file.replace('.csv', '.png')
+                if os.path.exists(figname):
+                    return
+
+                fig2 = plt.figure(num=2)
+                plt.clf()
+                ax2 = fig2.add_subplot(1, 1, 1)
+
+                ts = load_csv(v.csv_file)
+                # convert units for easier reading of graphs
+                ts.index = convert_time_units_series(ts.index, years=True)
+                # ts.plot(ax=ax2, label=v.simulation_set)
+                l, = ax2.plot(ts.index, ts.values, label=v.simulation_set)
+                ax2.legend()
+                ax2.set_xlabel(ts.index.name)
+                ax2.set_ylabel(v.units)
+                ax2.set_title(name)
+
+                # add yearly mean as well
+                if o.yearly_mean:
+                    yearly_mean = ts.rolling(12).mean()
+                    l2, = ax2.plot(ts.index[::12], yearly_mean[::12], alpha=1, linewidth=2, color=l.get_color())
+
+                if o.png_timeseries:
+                    fig2.savefig(figname, dpi=o.dpi)
+
+            def plot_region(v):
                 v0 = v.datasets[0]
 
-                def plot_timeseries():
-                    figname = v.csv_file.replace('.csv', '.png') 
-                    if os.path.exists(figname):
-                        return
+                figname = v.csv_file.replace('.csv', '-region.png')
+                if os.path.exists(figname):
+                    return
 
-                    fig2 = plt.figure(num=2)
-                    plt.clf()
-                    ax2 = fig2.add_subplot(1, 1, 1)
+                fig1 = plt.figure(num=1)
+                plt.clf()
+                ax1 = fig1.add_subplot(1, 1, 1, **kwargs)
 
-                    ts = load_csv(v.csv_file)
-                    # convert units for easier reading of graphs
-                    ts.index = convert_time_units_series(ts.index, years=True)
-                    # ts.plot(ax=ax2, label=v.simulation_set)
-                    l, = ax2.plot(ts.index, ts.values, label=v.simulation_set)
-                    ax2.legend()
-                    ax2.set_xlabel(ts.index.name)
-                    ax2.set_ylabel(v.units)
-                    ax2.set_title(name)
+                if isinstance(v.datasets[0], ERA5):
+                    y1, y2 = o.reference_period
+                    roll = False
+                    title = f'ERA5: {y1}-{y2}'
+                else:
+                    y1, y2 = 2071, 2100
+                    roll=True if o.view[1] < 0 else False
+                    title = f'{labels.get(v0.experiment, v0.experiment)} ({v0.model}): {y1}-{y2}'
 
-                    # add yearly mean as well
-                    if o.yearly_mean:
-                        yearly_mean = ts.rolling(12).mean()
-                        l2, = ax2.plot(ts.index[::12], yearly_mean[::12], alpha=1, linewidth=2, color=l.get_color())
+                refslice = slice(str(y1), str(y2))
+                map = v.load_cube(time=refslice, area=o.view, roll=roll).mean(dim='time')
 
-                    if o.png_timeseries:
-                        fig2.savefig(figname, dpi=o.dpi)
+                h = ax1.imshow(map.values[::-1], extent=cube_area(map, extent=True))
+                cb = plt.colorbar(h, ax=ax1, label=f'{name} ({v.units})')
+                # h = map.plot(ax=ax1, cbar_kwargs={'label':f'{v.units}'}, robust=True)
+                ax1.set_title(title)
+                ax1.plot(o.lon, o.lat, 'ko')
 
-                def plot_region():
-                    figname = v.csv_file.replace('.csv', '-region.png')
-                    if os.path.exists(figname):
-                        return
+                if cartopy:
+                    ax1.coastlines(resolution='10m')
 
-                    fig1 = plt.figure(num=1)
-                    plt.clf()
-                    ax1 = fig1.add_subplot(1, 1, 1, **kwargs)
+                if o.png_region:
+                    fig1.savefig(figname, dpi=o.dpi)
 
-                    if isinstance(v.datasets[0], ERA5):
-                        y1, y2 = o.reference_period
-                        roll = False
-                        title = f'ERA5: {y1}-{y2}'
-                    else:
-                        y1, y2 = 2071, 2100
-                        roll=True if o.view[1] < 0 else False
-                        title = f'{labels.get(v0.experiment, v0.experiment)} ({v0.model}): {y1}-{y2}'
 
-                    refslice = slice(str(y1), str(y2))
-                    map = v.load_cube(time=refslice, area=o.view, roll=roll).mean(dim='time')
+            for v in variables:
 
-                    h = ax1.imshow(map.values[::-1], extent=cube_area(map, extent=True))
-                    cb = plt.colorbar(h, ax=ax1, label=f'{name} ({v.units})')
-                    # h = map.plot(ax=ax1, cbar_kwargs={'label':f'{v.units}'}, robust=True)
-                    ax1.set_title(title)
-                    ax1.plot(o.lon, o.lat, 'ko')
-
-                    if cartopy:
-                        ax1.coastlines(resolution='10m')
-
-                    if o.png_region:
-                        fig1.savefig(figname, dpi=o.dpi)
 
                 if o.view_timeseries or o.png_timeseries:
-                    plot_timeseries()
+                    plot_timeseries(v)
                 
 
                 if o.view_region or o.png_region:
                     try:
-                        plot_region()
+                        plot_region(v)
                     except:
                         logging.warning(f'failed to make map for {v.name}')
 
@@ -466,16 +472,21 @@ def main():
                 # Add ensemble mean
                 if o.ensemble:
                     for experiment in ensemble_files:
-                        ts = load_csv(ensemble_files[experiment].csv_file)["median"]
-                        if o.yearly_mean:
-                            yearly_mean = ts.rolling(12).mean()
-                            x = ts.index[::12]
-                            y = yearly_mean[::12]
-                        else:
-                            x = ts.index
-                            y = ts.values
+                        df = load_csv(ensemble_files[experiment].csv_file)
+                        df.index = convert_time_units_series(df.index, years=True)
 
-                        ax3.plot(x, y, alpha=1, label=f"{experiment} (median)", linewidth=2, zorder=4)
+                        if o.yearly_mean:
+                            yearly_mean = df.rolling(12).mean()
+                            x = df.index[::12]
+                            y = yearly_mean.iloc[::12]
+                        else:
+                            x = df.index
+                            y = df
+
+                        l, = ax3.plot(x, y["median"], alpha=1, label=f"{experiment} (median)", linewidth=2, zorder=4)
+                        ax3.plot(x, y["lower"], linewidth=1, zorder=4, linestyle="--", color=l.get_color())
+                        ax3.plot(x, y["upper"], linewidth=1, zorder=4, linestyle="--", color=l.get_color())
+                        ax3.fill_between(x, y["lower"], y["upper"], alpha=0.2, zorder=-1, color=l.get_color())
 
                 ax3.legend(fontsize='xx-small')
                 ax3.set_ylabel(v.units)
