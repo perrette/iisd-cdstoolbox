@@ -11,6 +11,7 @@ import xarray as xr
 import pandas as pd
 import yaml
 import datetime
+import concurrent.futures
 import cdsapi
 
 from common import (ERA5, CMIP6, Indicator,
@@ -109,6 +110,38 @@ def parse_indicator(cls, name, units=None, description=None, scale=1, offset=0, 
 
     dataset = parse_dataset(cls, name, scale, offset, defs, cls_kwargs)
     return Indicator(name, units, description, datasets=[dataset])
+
+
+def download_all_variables(variables, max_workers=4):
+    # https://docs.python.org/3/library/concurrent.futures.html#threadpoolexecutor-example
+    downloaded_variables = []
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Start the load operations and mark each future with its URL
+        future_to_url = { executor.submit(v.download): v for v in variables }
+        for future in concurrent.futures.as_completed(future_to_url):
+            v = future_to_url[future]
+            try:
+                data = future.result()
+            except Exception as exc:
+                print(f'failed to download {v} : {exc}')
+            else:
+                downloaded_variables.append(v)
+
+    return downloaded_variables
+
+def _download_all_variables_serial_legacy(variables):
+    "original version of download_all_variables, without concurrent.futures"
+    downloaded_variables = []
+    for v in variables:
+        try:
+            v.download()
+        except Exception as error:
+            print(error)
+            logging.warning(f'failed to download {v}')
+            continue
+        downloaded_variables.append(v)
+    return downloaded_variables
 
 
 def main():
@@ -258,17 +291,8 @@ def main():
             logging.warning(f'no variable for {name}')
             continue
 
-        # download variables
-        try_variables = variables
-        variables = []
-        for v in try_variables:
-            try:
-                v.download()
-            except Exception as error:
-                print(error)
-                logging.warning(f'failed to download {v}')
-                continue
-            variables.append(v)
+
+        variables = download_all_variables(variables)
 
         # download and convert to csv
         for v in variables:
