@@ -170,9 +170,6 @@ def main():
     g.add_argument('--lat', type=float)
 
     g = parser.add_argument_group('area size controls')
-    g.add_argument('--tiled', action='store_true', help=argparse.SUPPRESS)
-    g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help=argparse.SUPPRESS)
-    #g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help='ERA5 tile in degress lon, lat (%(default)s by default)')
     g.add_argument('--area', nargs=4, type=float, help='area as four numbers: top, left, bottom, right (CDS convention)')
     g.add_argument('--width-km', type=float, default=1000, help="Width (km) around the selected location, when not provided by `area`. %(default)s km by default.")
     g.add_argument('--view', nargs=4, type=float, help='area for plot as four numbers: top, left, bottom, right (CDS convention)')
@@ -255,7 +252,7 @@ def main():
             scale=vdef.get('scale', 1), offset=vdef.get('offset', 0))
 
         vdef2 = vdef.get('era5',{})
-        era5_kwargs = dict(area=o.area, year=o.year, tiled=o.tiled)
+        era5_kwargs = dict(area=o.area, year=o.year)
         era5 = parse_indicator(ERA5, defs=vdef2, cls_kwargs=era5_kwargs, **indicator_def)
 
         era5.simulation_set = 'ERA5'

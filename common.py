@@ -259,7 +259,7 @@ class Dataset:
             print("!! Failed getting netCDF files for", self.downloaded_file)
             raise
         files = [f for f in ncfiles if self._within_ncfile(f, lon, lat)]
-        assert files, f'no file contains (lon: {lon}, lat: {lat}): {self.get_ncfiles()}'  # used only for tiled ERA5
+        assert files, f'no file contains (lon: {lon}, lat: {lat}): {self.get_ncfiles()}'
         return pd.concat([self._extract_timeseries(f, lon, lat, transform) for f in files])
 
 
@@ -546,9 +546,8 @@ class ERA5(Dataset):
     lat = 'latitude'
 
 
-    def __init__(self, variable, year=None, area=None, tiled=False, frequency=None, split_year=None, **kwargs):
+    def __init__(self, variable, year=None, area=None, frequency=None, split_year=None, **kwargs):
         """
-        tiled: experimental parameter to split the downloaded data into tiles, for easier re-reuse
         """
         if area is None:
             area = [90, -180, -90, 180]
@@ -580,10 +579,7 @@ class ERA5(Dataset):
         sub_requests = []
 
         if split_year:
-            sub_requests = [ERA5(variable, [y], area, tiled=tiled, frequency=frequency, split_year=False, **kwargs) for y in year]
-
-        elif tiled:
-            sub_requests = [ERA5(variable, year, subarea, tiled=False, frequency=frequency, split_year=False, **kwargs) for subarea in tiled_area(area)]
+            sub_requests = [ERA5(variable, [y], area, frequency=frequency, split_year=False, **kwargs) for y in year]
 
         params = {
             'format': 'netcdf',
@@ -624,44 +620,6 @@ def make_area(lon, lat, w, precision=1):
     disk_radius = earth_radius * np.cos(np.deg2rad(lat))
     lonw = np.rad2deg(w/disk_radius)
     return np.round(lat+latw, precision), np.round(lon-lonw, precision), np.round(lat-latw, precision), np.round(lon+lonw, precision)
-
-
-def tile_coords(dx=10, dy=5):
-    lons = np.arange(-180, 360+dx, dx)  # tiles works for [-180, 180] as well as [0, 360]
-    lats = np.arange(-90, 90+dy, dy)
-    return lons, lats
-
-
-def era5_tile_area(lon, lat, dx=10, dy=5):
-    """define a "tile" to re-use some of the files
-    """
-    # if lon > 180: lon -= 360
-    lons, lats = tile_coords(dx, dy)
-    j = np.searchsorted(lons, lon)
-    i = np.searchsorted(lats, lat)
-    area = lats[i], lons[j-1], lats[i-1], lons[j]
-    return np.array(area).tolist() # convert numpy data type to json-compatible python objects
-
-
-def tiled_area(area, dx=10, dy=5):
-    """return tiles
-    """
-    import shapely.geometry
-    lons, lats = tile_coords(dx, dy)
-    # print(f'area: {area}')
-    t, l, b, r = area
-    target = shapely.geometry.Polygon([(l,t), (r,t), (r, b), (l, b)])
-    subareas = []
-    for i in range(len(lons)-1):
-        for j in range(len(lats)-1):
-            lon1, lon2 = lons[i:i+2]
-            lat1, lat2 = lats[j:j+2]
-            t, l, b, r = lat2, lon1, lat1, lon2
-            test = shapely.geometry.Polygon([(l,t), (r,t), (r, b), (l, b)])
-            if target.intersects(test) and not target.touches(test): # touches means only boundary touches
-                subareas.append([t, l, b, r])
-    # print(f'subareas: {subareas}')
-    return subareas
 
 
 def load_csv(fname):
