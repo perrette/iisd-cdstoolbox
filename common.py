@@ -496,15 +496,18 @@ class CMIP6(Dataset):
             raise FileNotFoundError(f"Not found: {self.downloaded_file}")
             # self.download()
 
+        zipfolder = os.path.splitext(self.downloaded_file)[0]
+
         # extract all files if necessary
         with zipfile.ZipFile(self.downloaded_file, 'r') as zipObj:
             listOfiles = sorted([f for f in zipObj.namelist() if f.endswith(".nc")])
+            os.makedirs(zipfolder, exist_ok=True)
 
-            if not os.path.exists(os.path.join(self.folder, listOfiles[0])):
+            if not os.path.exists(os.path.join(zipfolder, listOfiles[0])):
                 print('Extracting all files...')
-                zipObj.extractall(path=self.folder)
+                zipObj.extractall(path=zipfolder)
 
-        return [os.path.join(self.folder, name) for name in listOfiles]
+        return [os.path.join(zipfolder, name) for name in listOfiles]
 
     def download(self):
         super().download()
