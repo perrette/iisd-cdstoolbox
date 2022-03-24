@@ -617,13 +617,13 @@ class ERA5(Dataset):
 # class ERA5hourly(ERA5):
 #     pass
 
-def make_area(lon, lat, w):
-    " return `area` keyword top left bottom right for lon/lat and width_km"
+def make_area(lon, lat, w, precision=1):
+    " return `area` keyword top left bottom right for lon/lat and width_km (one digit after 0 by default)"
     earth_radius = 6371
     latw = np.rad2deg(w/earth_radius)
     disk_radius = earth_radius * np.cos(np.deg2rad(lat))
     lonw = np.rad2deg(w/disk_radius)
-    return lat+latw, lon-lonw, lat-latw, lon+lonw
+    return np.round(lat+latw, precision), np.round(lon-lonw, precision), np.round(lat-latw, precision), np.round(lon+lonw, precision)
 
 
 def tile_coords(dx=10, dy=5):
