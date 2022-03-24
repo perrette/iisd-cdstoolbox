@@ -16,7 +16,7 @@ import cdsapi
 
 from common import (ERA5, CMIP6, Indicator,
     correct_yearly_bias, correct_monthly_bias, convert_time_units_series,
-    save_csv, load_csv, era5_tile_area, make_area, cube_area, time_units)
+    save_csv, load_csv, make_area, cube_area, time_units)
 
 import transform
 
@@ -170,11 +170,11 @@ def main():
     g.add_argument('--lat', type=float)
 
     g = parser.add_argument_group('area size controls')
-    g.add_argument('--width-km', type=float, help=argparse.SUPPRESS)
     g.add_argument('--tiled', action='store_true', help=argparse.SUPPRESS)
     g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help=argparse.SUPPRESS)
     #g.add_argument('--tile', type=float, nargs=2, default=[10, 5], help='ERA5 tile in degress lon, lat (%(default)s by default)')
     g.add_argument('--area', nargs=4, type=float, help='area as four numbers: top, left, bottom, right (CDS convention)')
+    g.add_argument('--width-km', type=float, default=1000, help="Width (km) around the selected location, when not provided by `area`. %(default)s km by default.")
     g.add_argument('--view', nargs=4, type=float, help='area for plot as four numbers: top, left, bottom, right (CDS convention)')
 
     g = parser.add_argument_group('ERA5 control')
@@ -209,23 +209,16 @@ def main():
 
     if not (o.location or (o.lon and o.lat)):
         parser.error('please provide a location, for instance `--location Welkenraedt`, or use custom lon and lat, e.g. `--lon 5.94 --lat 50.67`')
-    if o.area and o.width_km:
-        parser.error('only one of --area or --width-km may be provided')
 
     elif o.location:
         loc = {loc['name']: loc for loc in locations}[o.location]
         o.lon, o.lat = loc['lon'], loc['lat']
-        if 'area' in loc and not o.area and not o.width_km:
+        if 'area' in loc and not o.area:
             o.area = loc['area']
 
-    if o.width_km:
-        o.area = make_area(o.lon, o.lat, o.width_km)
 
     if not o.area:
-        dx, dy = o.tile
-        if np.mod(360, dx) != 0 or np.mod(180, dy) != 0:
-            parser.error('tile size must be a divider of 360, 180')
-        o.area = era5_tile_area(o.lon, o.lat, dx, dy)
+        o.area = make_area(o.lon, o.lat, o.width_km)
 
     print('lon', o.lon)
     print('lat', o.lat)
