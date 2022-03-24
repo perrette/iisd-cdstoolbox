@@ -130,7 +130,7 @@ def download_all_variables(variables, max_workers=4):
 
     return downloaded_variables
 
-def _download_all_variables_serial_legacy(variables):
+def download_all_variables_serial(variables):
     "original version of download_all_variables, without concurrent.futures"
     downloaded_variables = []
     for v in variables:
@@ -153,6 +153,7 @@ def main():
     cmip6_yml = yaml.safe_load(open('cmip6.yml'))
 
     parser = argparse.ArgumentParser()
+    parser.add_argument("--max-workers", type=int, default=4, help="Number of parallel threads for data download. Hint: use `--max-workers 1` for serial downlaod.")
     # g = parser.add_argument_group('variables or asset')
     g = parser.add_mutually_exclusive_group(required=True)
     # g.add_argument('--era5', nargs='*', help='list of ERA5-monthly variables to download (original name, no correction)')
@@ -190,7 +191,7 @@ def main():
     g.add_argument('--no-bias-correction', action='store_false', dest='bias_correction', help='suppress bias-correction for CMIP6 data')
     g.add_argument('--reference-period', default=[1979, 2019], nargs=2, type=int, help='reference period for bias correction (default: %(default)s)')
     g.add_argument('--yearly-bias', action='store_true', help='yearly instead of monthly bias correction')
-    g.add_argument('--ensemble', action='store_true', help='Download all models and consider the median')
+    g.add_argument('--ensemble', action='store_true', help='If `--model` is not specified, default to all available models. Also write a csv file with all models as columns, as well as median, lower and upper (5th and 95th percentiles) fields.')
 
 
     g = parser.add_argument_group('visualization')
@@ -288,7 +289,10 @@ def main():
             logging.warning(f'no variable for {name}')
             continue
 
-        variables2 = download_all_variables(variables)
+        if o.max_workers < 2:
+            variables2 = download_all_variables_serial(variables)
+        else:
+            variables2 = download_all_variables(variables)
 
         # Diagnose which variables have been excluded
         names = list(set([v.name for v in variables]))
