@@ -16,7 +16,7 @@ import cdsapi
 
 from common import (ERA5, CMIP6, Indicator,
     correct_yearly_bias, correct_monthly_bias, convert_time_units_series,
-    save_csv, load_csv, era5_tile_area, make_area, cube_area)
+    save_csv, load_csv, era5_tile_area, make_area, cube_area, time_units)
 
 import transform
 
@@ -298,8 +298,22 @@ def main():
             logging.warning(f'no variable for {name}')
             continue
 
+        variables2 = download_all_variables(variables)
 
-        variables = download_all_variables(variables)
+        # Diagnose which variables have been excluded
+        names = list(set([v.name for v in variables]))
+        names2 = list(set([v.name for v in variables2]))
+
+        models = list(set([v.datasets[0].model for v in variables if isinstance(v.datasets[0], CMIP6)]))
+        models2 = list(set([v.datasets[0].model for v in variables2 if isinstance(v.datasets[0], CMIP6)]))
+
+        print(f"Downloaded {len(variables2)} out of {len(variables)}")
+        print(f"... {len(names2)} out of {len(names)} variable types")
+        print(f"... {len(models2)} out of {len(models)} models")
+        print("CMIP6 models excluded:", " ".join([m for m in models if m not in models2]))
+        print("CMIP6 models included:", " ".join(models2))
+
+        variables = variables2
 
         # download and convert to csv
         for v in variables:
@@ -329,10 +343,18 @@ def main():
 
         if o.ensemble:
             ensemble_files = {}
-
+            import cftime, datetime
             for experiment in o.experiment:
                 ensemble_variables = [v for v in variables if isinstance(v.datasets[0], CMIP6) and v.datasets[0].experiment == experiment]
-                df = pd.DataFrame({v.model:load_csv(v.csv_file) for v in ensemble_variables})
+                dates = np.array([cftime.DatetimeGregorian(y, m, 15) for y in range(1979,2100+1) for m in range(1,12+1)])
+                index = pd.Index(cftime.date2num(dates, time_units), name=time_units)
+
+                df = {}
+                for v in ensemble_variables:
+                    series = load_csv(v.csv_file)
+                    series.index = index[:len(series)]
+                    df[v.datasets[0].model] = series
+                df = pd.DataFrame(df)
                 median = df.median(axis=1)
                 lower = df.quantile(.05, axis=1)
                 upper = df.quantile(.95, axis=1)
@@ -340,9 +362,10 @@ def main():
                 df["lower"] = lower
                 df["upper"] = upper
                 first = ensemble_variables[0]
-                folder = os.path.join(o.output, loc_folder, asset_folder, first.set_folder.replace(first.model, "ensemble"))
+                folder = os.path.join(o.output, loc_folder, asset_folder, first.set_folder.replace(first.datasets[0].model, "ensemble"))
                 csv_file = os.path.join(folder, first.alias or first.name)  + '.csv'
                 ensemble_files[experiment] = csv_file
+                os.makedirs(folder, exist_ok=True)
                 print("Save to",csv_file)
                 save_csv(df, csv_file)
 
@@ -472,7 +495,7 @@ def main():
                 # Add ensemble mean
                 if o.ensemble:
                     for experiment in ensemble_files:
-                        df = load_csv(ensemble_files[experiment].csv_file)
+                        df = load_csv(ensemble_files[experiment])
                         df.index = convert_time_units_series(df.index, years=True)
 
                         if o.yearly_mean:

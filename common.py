@@ -12,6 +12,7 @@ import pandas as pd
 import yaml
 import datetime
 import cdsapi
+import cftime
 
 #from netcdf_to_csv import convert_time
 
@@ -23,8 +24,8 @@ def convert_time_units_series(index, years=False):
     """
     # make sure we use the same start year
     if index.name != time_units:
-        dates = nc.num2date(index, index.name)
-        index = pd.Index(nc.date2num(dates, time_units), name=time_units)
+        dates = cftime.num2date(index, index.name)
+        index = pd.Index(cftime.date2num(dates, time_units), name=time_units)
     if years:
         index = index / 365.25 + start_year
         index.name = 'years'
@@ -172,8 +173,10 @@ class Dataset:
             self.download()
         with nc.Dataset(f) as ds:
             variable = self.get_varname(ds)
-            time0 = pd.Index(ds['time'][:], name=ds['time'].units)
-            time = convert_time_units_series(time0)
+            # convert to YYYY-MM-DD dates using netCDF-specific units and calendar
+            time0 = cftime.num2date(ds["time"][:], ds["time"].units, calendar=ds["time"].calendar)
+            # convert back to days using the standard calendar and custom units
+            time = pd.Index(cftime.date2num(time0, time_units), name=time_units)
 
         region = xr.open_dataset(f)[variable]
         londim = getattr(region, self.lon)
@@ -409,7 +412,7 @@ class CMIP5(Dataset):
             listOfiles = sorted(zipObj.namelist())
 
             if not os.path.exists(os.path.join(self.folder, listOfiles[0])):
-                print('Extracting all files...')
+                print(f'{self.downloaded_file} : extracting all files...')
                 zipObj.extractall(path=self.folder)
 
         return [os.path.join(self.folder, name) for name in listOfiles]
@@ -429,6 +432,9 @@ class CMIP6(Dataset):
             frequency = 'monthly'
         self.frequency = frequency
 
+        if model in ["mcm_ua_1_0"]:
+            self.lon = "longitude"
+            self.lat = "latitude"
 
         dataset = 'projections-cmip6'
 
