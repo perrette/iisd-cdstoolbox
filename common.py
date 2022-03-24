@@ -209,6 +209,20 @@ class Dataset:
             latdim = ds[self.lat]
             l, r = londim[0].tolist(), londim[len(londim)-1].tolist()
             b, t = latdim[0].tolist(), latdim[len(latdim)-1].tolist()
+
+            # In an instance (cesm2, ssp585, tas) the negative longitude were NaN (but the values are fine)
+            if l is None or r is None:
+                print("!! Warning: NaNs were found in lon coordinate => attempt to FIX it", f)
+                londim = londim[:].filled()
+                indices = np.arange(len(londim))
+                valid_lon = londim[np.isfinite(londim)]
+                valid_idx = indices[np.isfinite(londim)]
+                dlon = valid_lon[1] - valid_lon[0]
+                l = valid_lon[0] - (valid_idx[0] - 0)*dlon
+                r = valid_lon[-1] + (indices[-1] - valid_idx[-1])*dlon
+                londim = np.arange(l, r+dlon, dlon)
+                assert len(londim) == len(ds[self.lon])
+
             # account for grid step
             dlon = np.abs(londim[1] - londim[0])
             l -= dlon/2
@@ -224,7 +238,11 @@ class Dataset:
 
     def _within_ncfile(self, f, lon, lat):
         ' check if lon, lat point is within the netCDFfile'
-        t, l, b, r = self._nc_area(f)
+        try:
+            t, l, b, r = self._nc_area(f)
+        except:
+            print("!! Error while extracting netCDF area", f)
+            raise
         # print('within_ncfile debug', f, (l, r, b, t), lon, lat)
         if lon < l: return False
         if lon > r: return False
@@ -235,7 +253,12 @@ class Dataset:
 
     def extract_timeseries(self, lon, lat, transform=True):
         lon = self._fixed_longitude(lon)
-        files = [f for f in self.get_ncfiles() if self._within_ncfile(f, lon, lat)]
+        try:
+            ncfiles = self.get_ncfiles()
+        except:
+            print("!! Failed getting netCDF files for", self.downloaded_file)
+            raise
+        files = [f for f in ncfiles if self._within_ncfile(f, lon, lat)]
         assert files, f'no file contains (lon: {lon}, lat: {lat}): {self.get_ncfiles()}'  # used only for tiled ERA5
         return pd.concat([self._extract_timeseries(f, lon, lat, transform) for f in files])
 
