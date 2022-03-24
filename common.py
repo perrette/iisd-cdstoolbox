@@ -476,7 +476,7 @@ class CMIP6(Dataset):
 
         if area is not None:
             area = np.array(area).tolist() # be sure it is json serializable
-            name += "_" + f'{area[0]}-{area[1]}E-{area[2]}-{area[3]}N'
+            name += "_" + f'{area[0]}N-{area[1]}E-{area[2]}N-{area[3]}E'
 
         downloaded_file = os.path.join(folder, name+'.zip')
 
