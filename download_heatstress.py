@@ -6,6 +6,7 @@ import zipfile
 import numpy as np
 import pandas as pd
 import netCDF4 as nc
+import xarray as xa
 
 import cdsapi
 from cmip6 import get_all_models
@@ -136,11 +137,12 @@ def main():
                     downloaded_variables.append(v)
 
 
-        # dataset = {}
+        dataset = {}
 
         # # homogenize units
-        # dates = np.array([cftime.DatetimeGregorian(y, m, 15) for y in range(1979,2100+1) for m in range(1, 12+1)])
-        # # index = pd.Index(cftime.date2num(dates, time_units), name=time_units)
+        end_of_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+        dates = np.array([cftime.DatetimeGregorian(y, m, end_of_month[m-1]) for y in range(1979,2100+1) for m in range(1, 12+1)])
+        index = pd.Index(cftime.date2num(dates, time_units), name=time_units)
 
         loc_folder = o.location.lower() if o.location else f'{o.lat}N-{o.lon}E'
         folder = os.path.join(o.output, loc_folder, "extremes")
@@ -149,9 +151,23 @@ def main():
         for v in downloaded_variables:
             series = v.load_timeseries(lon=o.lon, lat=o.lat, overwrite=True)
 
+            # monthly mean
+            xa_series = xa.DataArray(series, coords={"time": cftime.num2date(series.index, time_units)}, dims=["time"])
+            series = xa_series.resample({"time": "M"}).mean().to_pandas()
+            # homogeneize index across calendars
+            series.index = pd.Index(cftime.date2num(index[:len(series)], time_units), name=time_units)
+            # series.index = pd.Index(cftime.date2num(series.index, time_units), name=time_units)
+
             csv_file = os.path.join(folder, f'{o.indicator}-{v.model}.csv')
             print("Save to file",csv_file)
-            series.to_csv(csv_file)
+
+            dataset[v.model] = series
+
+        df = pd.DataFrame(dataset)
+
+        csv_file = os.path.join(folder, f'{o.indicator}-all.csv')
+        print("Save to file",csv_file)
+        df.to_csv(csv_file)
 
 
 if __name__ == "__main__":
