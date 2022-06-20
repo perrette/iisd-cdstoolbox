@@ -12,30 +12,12 @@ from cmip6 import get_all_models
 
 
 from common import Dataset, CMIP6, time_units
+from download_extremes import ENSEMBLE_MEMBERS, SisExtremesIndicesCMIP6
 
 
-ENSEMBLE_MEMBERS = {
-    'cnrm_cm6_1': 'r1i1p1f2',
-    'cnrm_cm6_1_hr': 'r1i1p1f2',
-    'cnrm_esm2_1': 'r1i1p1f2',
-    'miroc_es2l': 'r1i1p1f2',
-    'ukesm1_0_ll': 'r1i1p1f2',
-}
+class HeatStress(SisExtremesIndicesCMIP6):
 
-
-class SisExtremesIndicesCMIP6(CMIP6):
-    pass
-
-
-class ExtremeValueIndices(SisExtremesIndicesCMIP6):
-
-    def __init__(self, variable, model, experiment, historical=None, frequency=None, date=None, ensemble=None):
-
-        if frequency is None:
-            frequency = 'yearly'
-        if frequency != 'yearly': raise NotImplementedError("Only yearly frequency is implemented")
-
-        self.frequency = frequency
+    def __init__(self, variable, model, experiment, ensemble=None):
 
         ensemble = ensemble or ENSEMBLE_MEMBERS.get(model, "r1i1p1f1")
 
@@ -44,9 +26,7 @@ class ExtremeValueIndices(SisExtremesIndicesCMIP6):
         dataset = 'sis-extreme-indices-cmip6'
 
 #         date = ['1900-12-01/2014-12-31'] if experiment == 'historical' else ['2015-01-01/2100-12-31']
-        date = ['1850-2014'] if experiment == 'historical' else ['2015-2100']
-        if date is str:
-            date = [date]
+        date = ['20110101-21001231']
 
 #         datestamp = date[0].split("/")[0].replace("-","") + '-' + date[-1].split("/")[1].replace("-","")
         datestamp = date[0].split("-")[0] + '-' + date[-1].split("-")[-1]
@@ -58,7 +38,7 @@ class ExtremeValueIndices(SisExtremesIndicesCMIP6):
 
         Dataset.__init__(self, dataset,
             {
-                'temporal_aggregation': frequency,
+                'temporal_aggregation': 'daily',
                 'experiment': experiment,
                 'variable': variable,
                 'model': model,
@@ -66,53 +46,32 @@ class ExtremeValueIndices(SisExtremesIndicesCMIP6):
                 # 'area': area,
                 'ensemble_member': ensemble,
                 'format': 'zip',
-                'product_type': 'base_independent',
+                'product_type': 'bias_adjusted',
             }, downloaded_file)
 
+        self.historical = None
 
-        # initialize an `historical` attribute
-        if historical is True:
-            historical = ExtremeValueIndices(variable, model, "historical", date=date, frequency=frequency, ensemble=ensemble)
-
-        elif historical is False:
-            historical = None
-
-        self.historical = historical
 
 
 VARIABLES =  [
-    'consecutive_dry_days', 'consecutive_wet_days', 'diurnal_temperature_range',
-    'frost_days', 'growing_season_length', 'heavy_precipitation_days',
-    'ice_days', 'maximum_1_day_precipitation', 'maximum_5_day_precipitation',
-    'maximum_value_of_daily_maximum_temperature', 'maximum_value_of_daily_minimum_temperature', 'minimum_value_of_daily_maximum_temperature',
-    'minimum_value_of_daily_minimum_temperature', 'number_of_wet_days', 'simple_daily_intensity_index',
-    'summer_days', 'total_wet_day_precipitation', 'tropical_nights',
-    'very_heavy_precipitation_days'
+            'heat_index', 'humidex', 'universal_thermal_climate_index',
+            'wet_bulb_globe_temperature_index', 'wet_bulb_temperature_index',
 ]
 
 
 # MODELS = get_all_models()
-_MODELS_SSP585 = [  'access_cm2', 'access_esm1_5', 'bcc_csm2_mr',
-            'ec_earth3', 'ec_earth3_veg', 'gfdl_cm4',
-            'gfdl_esm4', 'inm_cm4_8', 'inm_cm5_0',
-            'kace_1_0_g', 'kiost_esm', 'miroc6',
-            'mpi_esm1_2_hr', 'mpi_esm1_2_lr', 'mri_esm2_0',
-            'nesm3', 'noresm2_lm', 'noresm2_mm',] + [  'cnrm_cm6_1', 'cnrm_cm6_1_hr', 'cnrm_esm2_1', 'miroc_es2l', 'ukesm1_0_ll', ]
-
-
-_MODELS_HISTORICAL = ['access_cm2', 'access_esm1_5', 'bcc_csm2_mr',
-            'canesm5', 'ec_earth3', 'ec_earth3_veg',
+_MODELS_SSP585 = [  'access_cm2', 'access_esm1_5', 'canesm5',
+            'ec_earth3', 'ec_earth3_veg', 'fgoals_g3',
             'gfdl_cm4', 'gfdl_esm4', 'inm_cm4_8',
-            'inm_cm5_0', 'kace_1_0_g', 'kiost_esm',
-            'miroc6', 'mpi_esm1_2_hr', 'mpi_esm1_2_lr',
-            'mri_esm2_0', 'nesm3', 'noresm2_lm',
-            'noresm2_mm',] + [  'cnrm_cm6_1', 'cnrm_cm6_1_hr', 'cnrm_esm2_1', 'miroc_es2l', 'ukesm1_0_ll', ]
+            'inm_cm5_0', 'kiost_esm', 'mpi_esm1_2_hr',
+            'mpi_esm1_2_lr', 'mri_esm2_0', 'noresm2_lm',
+            'noresm2_mm', ] + [  'cnrm_cm6_1', 'cnrm_cm6_1_hr', 'cnrm_esm2_1', 'miroc_es2l']
 
 
-_MODELS_EXCLUDE = ['kace_1_0_g'] # netCDF file corrupt
+_MODELS_EXCLUDE = []
 
 # All models available for the above variables, for both historical and SSP585 experiments, with the r1i1p1f1 ensemble member
-MODELS = list(sorted(set(_MODELS_SSP585).intersection(_MODELS_HISTORICAL).difference(_MODELS_EXCLUDE)))
+MODELS = list(sorted(set(_MODELS_SSP585).difference(_MODELS_EXCLUDE)))
 
 def main():
 
@@ -159,7 +118,7 @@ def main():
     print('lat', o.lat)
 
     for experiment in o.experiment:
-        variables = [ExtremeValueIndices(o.indicator, model, experiment, historical=experiment != "historical", ensemble=o.ensemble_member) for model in o.model]
+        variables = [HeatStress(o.indicator, model, experiment, ensemble=o.ensemble_member) for model in o.model]
 
         # https://docs.python.org/3/library/concurrent.futures.html#threadpoolexecutor-example
         downloaded_variables = []
@@ -177,28 +136,22 @@ def main():
                     downloaded_variables.append(v)
 
 
-        dataset = {}
+        # dataset = {}
 
-        # homogenize units
-        dates = np.array([cftime.DatetimeGregorian(y, 12, 31) for y in range(1979,2100+1)])
-        index = pd.Index(cftime.date2num(dates, time_units), name=time_units)
-
-        for v in downloaded_variables:
-            series = v.load_timeseries(lon=o.lon, lat=o.lat, overwrite=True)
-            series.index = index[:len(series)] # otherwise we have things like 180, 182 etc
-
-            dataset[v.model] = series
-
-        df = pd.DataFrame(dataset)
+        # # homogenize units
+        # dates = np.array([cftime.DatetimeGregorian(y, m, 15) for y in range(1979,2100+1) for m in range(1, 12+1)])
+        # # index = pd.Index(cftime.date2num(dates, time_units), name=time_units)
 
         loc_folder = o.location.lower() if o.location else f'{o.lat}N-{o.lon}E'
         folder = os.path.join(o.output, loc_folder, "extremes")
-        csv_file = os.path.join(folder, o.indicator + '.csv')
-
         os.makedirs(folder, exist_ok=True)
 
-        print("Save to file",csv_file)
-        df.to_csv(csv_file)
+        for v in downloaded_variables:
+            series = v.load_timeseries(lon=o.lon, lat=o.lat, overwrite=True)
+
+            csv_file = os.path.join(folder, f'{o.indicator}-{v.model}.csv')
+            print("Save to file",csv_file)
+            series.to_csv(csv_file)
 
 
 if __name__ == "__main__":
