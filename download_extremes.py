@@ -67,7 +67,6 @@ class ExtremeValueIndices(SisExtremesIndicesCMIP6):
                 'ensemble_member': ensemble,
                 'format': 'zip',
                 'product_type': 'base_independent',
-                'ensemble_member': ensemble,
             }, downloaded_file)
 
 
@@ -120,7 +119,6 @@ def main():
     import argparse
 
     locations = yaml.safe_load(open('locations.yml'))
-    cmip6_yml = yaml.safe_load(open('cmip6.yml'))
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--max-workers", type=int, default=4, help="Number of parallel threads for data download. Hint: use `--max-workers 1` for serial downlaod.")
@@ -142,7 +140,7 @@ def main():
     g = parser.add_argument_group('CMIP6 control')
     g.add_argument('--model', nargs='*', default=None, choices=MODELS)
     g.add_argument('--ensemble_member', default=None, help="typically `r1i1p1f1` but some models require different members")
-    g.add_argument('--experiment', nargs='*', choices=cmip6_yml["experiments"], default=['ssp5_8_5'])
+    g.add_argument('--experiment', nargs='*', choices=['ssp1_2_6', 'ssp2_4_5', 'ssp3_7_0', 'ssp5_8_5'], default=['ssp5_8_5'])
     # g.add_argument('--ensemble', action='store_true', help='If `--model` is not specified, default to all available models for the standard set of parameters. ')
 
     o = parser.parse_args()
