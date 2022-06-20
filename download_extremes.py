@@ -176,6 +176,9 @@ def main():
                 else:
                     downloaded_variables.append(v)
 
+        loc_folder = o.location.lower() if o.location else f'{o.lat}N-{o.lon}E'
+        folder = os.path.join(o.output, loc_folder, "extremes")
+        os.makedirs(folder, exist_ok=True)
 
         dataset = {}
 
@@ -184,19 +187,18 @@ def main():
         index = pd.Index(cftime.date2num(dates, time_units), name=time_units)
 
         for v in downloaded_variables:
-            series = v.load_timeseries(lon=o.lon, lat=o.lat, overwrite=True)
+            series = v.load_timeseries(lon=o.lon, lat=o.lat, overwrite=o.overwrite)
             series.index = index[:len(series)] # otherwise we have things like 180, 182 etc
 
             dataset[v.model] = series
 
+            csv_file = os.path.join(folder, f'{o.indicator}-{v.model}.csv')
+            print("Save to file",csv_file)
+            series.to_csv(csv_file)
+
         df = pd.DataFrame(dataset)
 
-        loc_folder = o.location.lower() if o.location else f'{o.lat}N-{o.lon}E'
-        folder = os.path.join(o.output, loc_folder, "extremes")
-        csv_file = os.path.join(folder, o.indicator + '.csv')
-
-        os.makedirs(folder, exist_ok=True)
-
+        csv_file = os.path.join(folder, f'{o.indicator}-all.csv')
         print("Save to file",csv_file)
         df.to_csv(csv_file)
 

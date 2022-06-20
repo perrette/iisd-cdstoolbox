@@ -151,14 +151,14 @@ def main():
         os.makedirs(folder, exist_ok=True)
 
         for v in downloaded_variables:
-            series = v.load_timeseries(lon=o.lon, lat=o.lat, overwrite=True)
+            series = v.load_timeseries(lon=o.lon, lat=o.lat, overwrite=o.overwrite)
 
             # monthly mean
             if o.frequency == "monthly":
                 xa_series = xa.DataArray(series, coords={"time": cftime.num2date(series.index, time_units)}, dims=["time"])
                 series = xa_series.resample({"time": "M"}).mean().to_pandas()
                 # homogeneize index across calendars
-                series.index = pd.Index(cftime.date2num(index[:len(series)], time_units), name=time_units)
+                series.index = index[:len(series)]
                 # series.index = pd.Index(cftime.date2num(series.index, time_units), name=time_units)
 
             csv_file = os.path.join(folder, f'{o.indicator}-{o.frequency}-{v.model}.csv')
