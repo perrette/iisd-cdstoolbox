@@ -91,6 +91,7 @@ def main():
     # parser.add_argument('--dataset', choices=['era5', 'cmip6'], help='dataset in combination with for `--indicators` and `--asset`')
     parser.add_argument('-o', '--output', default='indicators', help='output directory, default: %(default)s')
     parser.add_argument('--overwrite',action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--frequency', choices=["daily", "monthly"], default="daily")
 
     g = parser.add_argument_group('location')
     g.add_argument('--location', choices=[loc['name'] for loc in locations], help='location name defined in locations.yml')
@@ -139,10 +140,11 @@ def main():
 
         dataset = {}
 
-        # # homogenize units
-        end_of_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-        dates = np.array([cftime.DatetimeGregorian(y, m, end_of_month[m-1]) for y in range(1979,2100+1) for m in range(1, 12+1)])
-        index = pd.Index(cftime.date2num(dates, time_units), name=time_units)
+        # homogenize units
+        if o.frequency == "monthly":
+            end_of_month = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+            dates = np.array([cftime.DatetimeGregorian(y, m, end_of_month[m-1]) for y in range(1979,2100+1) for m in range(1, 12+1)])
+            index = pd.Index(cftime.date2num(dates, time_units), name=time_units)
 
         loc_folder = o.location.lower() if o.location else f'{o.lat}N-{o.lon}E'
         folder = os.path.join(o.output, loc_folder, "extremes")
@@ -152,20 +154,22 @@ def main():
             series = v.load_timeseries(lon=o.lon, lat=o.lat, overwrite=True)
 
             # monthly mean
-            xa_series = xa.DataArray(series, coords={"time": cftime.num2date(series.index, time_units)}, dims=["time"])
-            series = xa_series.resample({"time": "M"}).mean().to_pandas()
-            # homogeneize index across calendars
-            series.index = pd.Index(cftime.date2num(index[:len(series)], time_units), name=time_units)
-            # series.index = pd.Index(cftime.date2num(series.index, time_units), name=time_units)
+            if o.frequency == "monthly":
+                xa_series = xa.DataArray(series, coords={"time": cftime.num2date(series.index, time_units)}, dims=["time"])
+                series = xa_series.resample({"time": "M"}).mean().to_pandas()
+                # homogeneize index across calendars
+                series.index = pd.Index(cftime.date2num(index[:len(series)], time_units), name=time_units)
+                # series.index = pd.Index(cftime.date2num(series.index, time_units), name=time_units)
 
-            csv_file = os.path.join(folder, f'{o.indicator}-{v.model}.csv')
+            csv_file = os.path.join(folder, f'{o.indicator}-{o.frequency}-{v.model}.csv')
             print("Save to file",csv_file)
+            series.to_csv(csv_file)
 
             dataset[v.model] = series
 
         df = pd.DataFrame(dataset)
 
-        csv_file = os.path.join(folder, f'{o.indicator}-all.csv')
+        csv_file = os.path.join(folder, f'{o.indicator}-{o.frequency}-all.csv')
         print("Save to file",csv_file)
         df.to_csv(csv_file)
 
