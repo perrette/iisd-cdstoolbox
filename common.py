@@ -169,8 +169,14 @@ class Dataset:
 
 
     def _extract_timeseries(self, f, lon, lat, transform=True):
+        """
+        Note on time and xarray: we do not use xarray anymore because it decodes time-units for all variables, not only
+        "time" units, which is annoying for extremes, e.g. consecutive dry days, which should stick to "days".
+        NetCDF4 works just fine, we do not need to meddle with "decode_times=False".
+        """
         if not os.path.exists(self.downloaded_file):
             self.download()
+
         with nc.Dataset(f) as ds:
             variable = self.get_varname(ds)
             # convert to YYYY-MM-DD dates using netCDF-specific units and calendar
@@ -178,14 +184,17 @@ class Dataset:
             # convert back to days using the standard calendar and custom units
             time = pd.Index(cftime.date2num(time0, time_units), name=time_units)
 
-        region = xr.open_dataset(f)[variable]
-        londim = getattr(region, self.lon)
-        latdim = getattr(region, self.lat)
-        # is latitude is in reverse order for this dataset ?
-        if latdim[1] < latdim[0]:
-            interpolator = RegularGridInterpolator((londim, latdim[::-1]), region.values.T[:, ::-1])
-        else:
-            interpolator = RegularGridInterpolator((londim, latdim), region.values.T)
+            ncvar = ds[variable]
+            units = ncvar.units
+
+            londim = ds[self.lon][:]
+            latdim = ds[self.lat][:]
+            # is latitude is in reverse order for this dataset ?
+            if latdim[1] < latdim[0]:
+                interpolator = RegularGridInterpolator((londim, latdim[::-1]), ncvar[::-1].T)
+            else:
+                interpolator = RegularGridInterpolator((londim, latdim), ncvar[:].T)
+
         try:
             timeseries = interpolator(np.array((lon, lat)), method='linear').squeeze()
         except ValueError as error:
@@ -194,7 +203,6 @@ class Dataset:
             print("ERROR: Recommended solution: request a nearby location within the bounds or try other climate models.")
             raise
 
-        units = region.units # file
         series = pd.Series(timeseries, index=time, name=f'{self.variable} ({units})')
 
         if transform:
@@ -289,15 +297,15 @@ class Dataset:
         return timeseries[timeseries.index >= 0]  # only load data after 1979
 
 
-    def load_cube(self, time=None, area=None, roll=False):
+    def load_cube(self, time=None, area=None, roll=False, decode_times=True):
         files = self.get_ncfiles()
         with nc.Dataset(files[0]) as ds:
             variable = self.get_varname(ds)
 
         if len(files) == 1:
-            cube = xr.open_dataset(files[0])[variable]
+            cube = xr.open_dataset(files[0], decode_times=decode_times)[variable]
         else:
-            cube = xr.open_mfdataset(files, combine='by_coords')[variable]
+            cube = xr.open_mfdataset(files, combine='by_coords', decode_times=decode_times)[variable]
 
         if time is not None:
             cube = cube.sel(time=time)
@@ -511,6 +519,17 @@ class CMIP6(Dataset):
         historical = self.historical.load_timeseries(*args, **kwargs)
 
         return pd.concat([historical, series]) #TODO: check name and units
+
+
+    def load_cube(self, *args, **kwargs):
+        series = super().load_cube(*args, **kwargs)
+
+        if self.historical is None:
+            return series
+
+        historical = self.historical.load_cube(*args, **kwargs)
+
+        return xr.concat([historical, series], dim="time")
 
 
     def get_ncfiles(self):
