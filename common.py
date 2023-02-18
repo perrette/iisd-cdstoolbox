@@ -472,12 +472,9 @@ class CMIP6(Dataset):
         if period:
             raise DeprecationError("`period` is not an argument of the CMIP6 class. `date` is determined automatically")
 
-        date = ['1900-12-01/2014-12-31'] if experiment == 'historical' else ['2015-01-01/2100-12-31']
+        year = [str(y) for y in range(1900, 2014+1)] if experiment == 'historical' else [str(y) for y in range(2015, 2100+1)]
 
-        if date is str:
-            date = [date]
-        datestamp = date[0].split("/")[0].replace("-","") + '-' + date[-1].split("/")[1].replace("-","")
-
+        datestamp = f"{year[0]}0101-{year[-1]}1231"
 
         folder = os.path.join('download', dataset)
         name = f'{variable}-{model}-{experiment}-{datestamp}'
@@ -495,7 +492,9 @@ class CMIP6(Dataset):
                 'level': 'single_levels',
                 'variable': variable,
                 'model': model,
-                'date': date,
+                # 'date': date,
+                'year': year,
+                'month': [str(m) for m in range(1, 12+1)],
                 'area': area,
                 # 'ensemble_member': ensemble,
                 'format': 'zip',
@@ -503,7 +502,7 @@ class CMIP6(Dataset):
 
         # initialize an `historical` attribute
         if historical is True:
-            historical = CMIP6(variable, model, "historical", date, frequency=frequency, period=period, area=area, **kwargs)
+            historical = CMIP6(variable, model, "historical", frequency=frequency, period=period, area=area, **kwargs)
         elif historical is False:
             historical = None
 
